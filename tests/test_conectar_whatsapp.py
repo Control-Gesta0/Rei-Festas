@@ -1,0 +1,166 @@
+"""Testes da página de conexão do WhatsApp (QR Code da Zaptos).
+
+    python3 -m unittest discover -s tests
+"""
+import http.server
+import json
+import os
+import sys
+import threading
+import unittest
+import urllib.error
+import urllib.request
+from pathlib import Path
+from unittest import mock
+
+RAIZ = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(RAIZ / "api" / "_lib"))
+sys.path.insert(0, str(RAIZ / "api"))
+
+QR = "data:image/png;base64,iVBORw0KGgoQRFALSO"
+
+
+class Zaptos(http.server.BaseHTTPRequestHandler):
+    estado, chamadas, http_status, webhooks = "disconnected", [], 200, []
+
+    def _json(self, corpo):
+        dados = json.dumps(corpo).encode()
+        self.send_response(Zaptos.http_status)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(dados)
+
+    def do_GET(self):
+        Zaptos.chamadas.append(("GET", self.path, self.headers["token"]))
+        if Zaptos.http_status != 200:
+            return self._json({"error": "Invalid token"})
+        if self.path == "/webhook":
+            return self._json(Zaptos.webhooks)
+        inst = {"status": Zaptos.estado, "profileName": "Control Gestão"}
+        if Zaptos.estado == "connecting":
+            inst["qrcode"] = QR
+        conectado = Zaptos.estado == "connected"
+        self._json({"instance": inst, "status": {
+            "connected": conectado,
+            "jid": {"user": "5511900001111", "server": "s.whatsapp.net"} if conectado else None}})
+
+    def do_POST(self):
+        Zaptos.chamadas.append(("POST", self.path, self.headers["token"]))
+        if self.path == "/chat/check":
+            corpo = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            return self._json([{"query": n, "isInWhatsapp": True, "jid": f"{n}@s.whatsapp.net"}
+                               for n in corpo["numbers"]])
+        if self.path == "/chat/editLead":
+            Zaptos.ultimo_corpo = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            return self._json({"ok": True})
+        if self.path == "/webhook":
+            corpo = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            Zaptos.webhooks = [{**corpo, "id": "wh1"}]
+            return self._json(Zaptos.webhooks)
+        Zaptos.estado = "connecting"
+        self._json({"connected": False, "instance": {"status": "connecting", "qrcode": QR}})
+
+    def log_message(self, *a):
+        pass
+
+
+class TestConectarWhatsapp(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.zaptos = http.server.HTTPServer(("127.0.0.1", 0), Zaptos)
+        threading.Thread(target=cls.zaptos.serve_forever, daemon=True).start()
+        cls.env = mock.patch.dict(os.environ, {
+            "CRON_SECRET": "cron", "ZAPTOS_URL": f"http://127.0.0.1:{cls.zaptos.server_port}",
+            "ZAPTOS_TOKEN": "tok-secreto", "NO_PROXY": "127.0.0.1", "no_proxy": "127.0.0.1"})
+        cls.env.start()
+        import conectar_whatsapp as rota  # api/conectar_whatsapp.py (o handler)
+        cls.srv = http.server.HTTPServer(("127.0.0.1", 0), rota.handler)
+        threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.srv.shutdown()
+        cls.zaptos.shutdown()
+        cls.env.stop()
+
+    def setUp(self):
+        Zaptos.estado, Zaptos.chamadas, Zaptos.http_status, Zaptos.webhooks = (
+            "disconnected", [], 200, [])
+
+    def get(self, query="?chave=cron"):
+        abridor = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        url = f"http://127.0.0.1:{self.srv.server_port}/api/conectar_whatsapp{query}"
+        try:
+            with mock.patch("sys.stdout"), abridor.open(url, timeout=10) as r:
+                return r.status, r.read().decode()
+        except urllib.error.HTTPError as e:
+            return e.code, e.read().decode()
+
+    def test_sem_chave_nao_fala_com_a_zaptos(self):
+        status, pagina = self.get("")
+        self.assertEqual(status, 401)
+        self.assertEqual(Zaptos.chamadas, [])
+
+    def test_desconectado_gera_qr_code(self):
+        status, pagina = self.get()
+        self.assertEqual(status, 200)
+        self.assertEqual([c[:2] for c in Zaptos.chamadas],
+                         [("GET", "/instance/status"), ("POST", "/instance/connect")])
+        self.assertEqual({c[2] for c in Zaptos.chamadas}, {"tok-secreto"})
+        self.assertIn(f'src="{QR}"', pagina)
+        self.assertIn('http-equiv="refresh"', pagina)
+        self.assertNotIn("tok-secreto", pagina)
+
+    def test_conectando_reaproveita_o_qr_sem_pedir_outro(self):
+        Zaptos.estado = "connecting"
+        status, pagina = self.get()
+        self.assertEqual([c[:2] for c in Zaptos.chamadas], [("GET", "/instance/status")])
+        self.assertIn(f'src="{QR}"', pagina)
+
+    def test_conectado_mostra_o_numero_e_para_de_atualizar(self):
+        Zaptos.estado = "connected"
+        status, pagina = self.get()
+        self.assertEqual(status, 200)
+        self.assertIn("WhatsApp conectado", pagina)
+        self.assertIn("Control Gestão (5511900001111)", pagina)
+        self.assertNotIn("refresh", pagina)
+        self.assertNotIn("<img", pagina)
+        self.assertEqual([c[:2] for c in Zaptos.chamadas],
+                         [("GET", "/instance/status"), ("GET", "/webhook")])
+        self.assertIn("Recebimento de mensagens desligado", pagina)
+        self.assertIn('href="?chave=cron&amp;webhook=1"', pagina)
+
+    def test_devolver_conversa_ao_robo(self):
+        Zaptos.estado = "connected"
+        status, pagina = self.get("?chave=cron&retomar=%2855%29+11+98888-7777")
+        edicao = [c for c in Zaptos.chamadas if c[1] == "/chat/editLead"]
+        self.assertEqual(len(edicao), 1)
+        self.assertEqual(Zaptos.ultimo_corpo, {"id": "5511988887777@s.whatsapp.net",
+                                               "chatbot_disableUntil": 0})
+        self.assertIn("Conversa com 5511*****7777 devolvida ao robô.", pagina)
+        status, pagina = self.get("?chave=cron&retomar=123")
+        self.assertIn("Não consegui devolver a conversa", pagina)
+
+    def test_ligar_recebimento_cadastra_o_webhook_com_a_chave_derivada(self):
+        from autorizacao import token_webhook_whatsapp
+        Zaptos.estado = "connected"
+        status, pagina = self.get("?chave=cron&webhook=1")
+        (hook,) = Zaptos.webhooks
+        self.assertTrue(hook["url"].endswith(
+            f"/api/webhooks/zaptos?chave={token_webhook_whatsapp()}"))
+        self.assertNotIn("cron", hook["url"].split("?")[1].replace(token_webhook_whatsapp(), ""))
+        self.assertEqual((hook["events"], hook["excludeMessages"]),
+                         (["messages"], ["wasSentByApi", "isGroupYes"]))
+        self.assertIn("Recebimento de mensagens ligado", pagina)
+        self.assertNotIn(token_webhook_whatsapp(), pagina)
+
+    def test_token_errado_explica_o_que_conferir(self):
+        Zaptos.http_status = 401
+        status, pagina = self.get()
+        self.assertEqual(status, 502)
+        self.assertIn("Confira ZAPTOS_TOKEN", pagina)
+        self.assertNotIn("tok-secreto", pagina)
+
+
+if __name__ == "__main__":
+    unittest.main()

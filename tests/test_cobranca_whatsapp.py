@@ -34,8 +34,12 @@ class Vhsys:
         self.receitas = {r["id_conta_rec"]: dict(r) for r in receitas}
         self.clientes = clientes
 
-    def receitas_modificadas_desde(self, data):
-        return [dict(r) for r in self.receitas.values()]
+    def receitas_em_aberto(self):
+        return [dict(r) for r in self.receitas.values() if r["liquidado_rec"] == "Nao"]
+
+    def receitas_do_cliente(self, id_cliente):
+        self.consultas_cliente = getattr(self, "consultas_cliente", 0) + 1
+        return [dict(r) for r in self.receitas.values() if str(r["id_cliente"]) == id_cliente]
 
     def consultar_receita(self, id_receita):
         return dict(self.receitas[id_receita]) if id_receita in self.receitas else None
@@ -50,11 +54,12 @@ class Vhsys:
 class Asaas:
     ErroAsaas = ErroAsaasFalso
 
-    def __init__(self, status="PENDING", sem_pix=False):
-        self.status, self.sem_pix = status, sem_pix
+    def __init__(self, status="PENDING", sem_pix=False, excluida=False):
+        self.status, self.sem_pix, self.excluida = status, sem_pix, excluida
 
     def consultar_cobranca(self, pid):
-        return {"id": pid, "status": self.status, "value": 350.0, "invoiceNumber": "928695642",
+        return {"id": pid, "status": self.status, "deleted": self.excluida, "value": 350.0,
+                "invoiceNumber": "928695642",
                 "bankSlipUrl": f"https://www.asaas.com/b/pdf/{pid}",
                 "invoiceUrl": f"https://www.asaas.com/i/{pid}"}
 
@@ -67,8 +72,10 @@ class Asaas:
         return {"payload": f"00020126PIX-{pid}"}
 
 
-def receita(id_=1, venc="2026-10-20", obs=OBS, banco="1320902", liquidado="Nao", cliente=77):
+def receita(id_=1, venc="2026-10-14", obs=OBS, banco="1320902", liquidado="Nao", cliente=77,
+            cad="2026-10-06 09:00:00", ident="0"):
     return {"id_conta_rec": id_, "id_banco": banco, "vencimento_rec": venc, "valor_rec": "350.00",
+            "data_cad_rec": cad, "identificacao": ident,
             "observacoes_rec": obs, "liquidado_rec": liquidado, "id_cliente": cliente,
             "nome_cliente": "CSL DISTRIBUIDORA", "nome_conta": "Mensalidade outubro"}
 
@@ -80,8 +87,12 @@ CLIENTE = {"id_cliente": 77, "razao_cliente": "CSL DISTRIBUIDORA LTDA",
 class Zaptos:
     """Substitui o transporte: guarda (tipo, número, conteúdo) de cada mensagem."""
 
-    def __init__(self, falhar=()):
+    def __init__(self, falhar=(), sem_whatsapp=(), jid=None):
         self.mensagens, self.falhar = [], set(falhar)
+        self.sem_whatsapp, self.jid = set(sem_whatsapp), jid or {}
+
+    def verificar(self, numero):
+        return None if numero in self.sem_whatsapp else self.jid.get(numero, numero)
 
     def texto(self, numero, texto):
         tipo = "pix" if texto.startswith("00020126") else "texto"
@@ -95,10 +106,11 @@ class Zaptos:
         self.mensagens.append(("pdf", numero, url, nome))
 
 
-def rodar(vhsys, asaas, etapas=("boleto",), aplicar=True, hoje=HOJE, falhar=()):
-    z = Zaptos(falhar)
+def rodar(vhsys, asaas, etapas=("boleto",), aplicar=True, hoje=HOJE, falhar=(), **zaptos):
+    z = Zaptos(falhar, **zaptos)
     with mock.patch.object(whatsapp, "enviar_texto", z.texto), \
             mock.patch.object(whatsapp, "enviar_documento", z.documento), \
+            mock.patch.object(whatsapp, "destino_verificado", z.verificar), \
             mock.patch.dict(os.environ, {"VHSYS_ID_BANCO_ASAAS": "", "LEMBRETE_DIAS_ATRASO": ""}):
         r = cw.cobrar(vhsys, asaas, etapas, aplicar=aplicar, desde=DESDE, hoje=hoje)
     return r, z.mensagens
@@ -107,9 +119,27 @@ def rodar(vhsys, asaas, etapas=("boleto",), aplicar=True, hoje=HOJE, falhar=()):
 class TestTelefone(unittest.TestCase):
     def test_formatos(self):
         casos = {"(11) 98888-7777": "5511988887777", "5511988887777": "5511988887777",
-                 "011 3333-4444": "551133334444", "98888-7777": None, "": None}
+                 "011 3333-4444": "551133334444", "98888-7777": None, "": None,
+                 "+55 (11) 98888-7777": "5511988887777", "123@g.us": None}
         for entrada, esperado in casos.items():
             self.assertEqual(cw.telefone({"celular_cliente": entrada}), esperado, entrada)
+
+    def test_destino_da_conciliacao(self):
+        self.assertEqual(whatsapp.normalizar(" +55 11 98888-7777 "), "5511988887777")
+        self.assertEqual(whatsapp.normalizar("120363000000@g.us"), "120363000000@g.us")
+        self.assertIsNone(whatsapp.normalizar("98888-7777"))
+        self.assertEqual(whatsapp.mascarar("5511988887777"), "5511*****7777")
+
+
+class TestNome(unittest.TestCase):
+    def test_nome_em_maiusculas_fica_legivel(self):
+        casos = {"EDUARDO DO VALE": "Eduardo do Vale",
+                 "PEDRAZZOLI & PEDRAZZOLI LTDA": "Pedrazzoli & Pedrazzoli LTDA",
+                 "MARIA DAS DORES E SILVA": "Maria das Dores e Silva",
+                 "Já Escrito Normal": "Já Escrito Normal",
+                 "LION COMERCIO &amp;amp; SERVICOS LTDA": "Lion Comercio & Servicos LTDA"}
+        for entrada, esperado in casos.items():
+            self.assertEqual(cw.nome_cliente({"razao_cliente": entrada}, {}), esperado)
 
 
 class TestBoleto(unittest.TestCase):
@@ -117,24 +147,24 @@ class TestBoleto(unittest.TestCase):
         v = Vhsys([receita()], {77: CLIENTE})
         r, msgs = rodar(v, Asaas(), aplicar=False)
         self.assertEqual((r["resumo"], msgs), ({"seria_enviado": 1}, []))
-        self.assertIn("vencimento em 20/10/2026", r["resultados"][0]["texto"])
+        self.assertIn("vencimento em 14/10/2026", r["resultados"][0]["texto"])
         self.assertEqual(v.receitas[1]["observacoes_rec"], OBS)
 
-    def test_envia_texto_pdf_e_pix_da_cobranca_e_marca(self):
+    def test_envia_texto_e_pdf_sem_pix_separado_e_marca(self):
         v = Vhsys([receita()], {77: CLIENTE})
         r, msgs = rodar(v, Asaas())
-        self.assertEqual([m[0] for m in msgs], ["texto", "pdf", "pix"])
+        self.assertEqual([m[0] for m in msgs], ["texto", "pdf"])  # o PDF já tem o QR Pix
         self.assertEqual({m[1] for m in msgs}, {"5511988887777"})
         texto = msgs[0][2]
-        self.assertIn("Olá, Csl Distribuidora Ltda!", texto)
+        self.assertIn("Olá, Csl Distribuidora LTDA!", texto)
         self.assertIn("R$ 350,00", texto)
         self.assertIn("Linha digitável:\n4619111", texto)
         self.assertIn("https://www.asaas.com/i/pay_abc", texto)
-        self.assertEqual(msgs[2][2], "00020126PIX-pay_abc")  # Pix da cobrança, não chave fixa
+        self.assertNotIn("Pix copia e cola", texto)
         self.assertEqual(msgs[1][3], "boleto-928695642.pdf")
         res = r["resultados"][0]
         self.assertEqual((res["resultado"], res["marca_gravada"]), ("enviado", True))
-        self.assertIn("WhatsApp: boleto enviado em 06/10/2026 (texto, pdf, pix).",
+        self.assertIn("WhatsApp: boleto enviado em 06/10/2026 (texto, pdf).",
                       v.receitas[1]["observacoes_rec"])
         self.assertTrue(v.receitas[1]["observacoes_rec"].startswith(OBS))
 
@@ -144,17 +174,16 @@ class TestBoleto(unittest.TestCase):
         r, msgs = rodar(v, Asaas())
         self.assertEqual((r["resultados"], msgs), ([], []))
 
-    def test_sem_pix_manda_texto_e_pdf(self):
+    def test_conta_sem_pix_manda_o_mesmo(self):
         v = Vhsys([receita()], {77: CLIENTE})
         r, msgs = rodar(v, Asaas(sem_pix=True))
         self.assertEqual([m[0] for m in msgs], ["texto", "pdf"])
-        self.assertNotIn("próxima mensagem", msgs[0][2])
 
     def test_falha_no_pdf_nao_repete_o_texto(self):
         v = Vhsys([receita()], {77: CLIENTE})
         r, msgs = rodar(v, Asaas(), falhar={"pdf"})
         res = r["resultados"][0]
-        self.assertEqual((res["resultado"], res["mensagens"]), ("enviado", ["texto", "pix"]))
+        self.assertEqual((res["resultado"], res["mensagens"]), ("enviado", ["texto"]))
         self.assertIn("pdf", res["falhas"])
         self.assertIn("boleto enviado", v.receitas[1]["observacoes_rec"])
 
@@ -170,10 +199,114 @@ class TestBoleto(unittest.TestCase):
             r, msgs = rodar(v, Asaas(status=status))
             self.assertEqual((r["resumo"], msgs), ({"nao_enviado": 1}, []), status)
 
+    def test_celular_sem_whatsapp_nao_envia_nem_marca(self):
+        v = Vhsys([receita()], {77: CLIENTE})
+        r, msgs = rodar(v, Asaas(), sem_whatsapp={"5511988887777"})
+        self.assertEqual((r["resumo"], msgs), ({"sem_whatsapp": 1}, []))
+        self.assertNotIn("WhatsApp:", v.receitas[1]["observacoes_rec"])
+
+    def test_envia_para_o_numero_que_o_whatsapp_conhece(self):
+        # conta antiga sem o nono dígito: o /chat/check devolve 551188887777
+        v = Vhsys([receita()], {77: CLIENTE})
+        r, msgs = rodar(v, Asaas(), jid={"5511988887777": "551188887777"})
+        self.assertEqual({m[1] for m in msgs}, {"551188887777"})
+
+    def test_cobranca_excluida_no_asaas_nao_envia(self):
+        # paga por fora (Pix no C6) e excluída no Asaas: o status continua PENDING
+        v = Vhsys([receita()], {77: CLIENTE})
+        r, msgs = rodar(v, Asaas(excluida=True))
+        self.assertEqual((r["resumo"], msgs), ({"nao_enviado": 1}, []))
+        self.assertEqual(r["resultados"][0]["motivo"], "cobrança excluída no Asaas")
+
     def test_cliente_sem_celular(self):
         v = Vhsys([receita()], {77: {**CLIENTE, "celular_cliente": ""}})
         r, msgs = rodar(v, Asaas())
         self.assertEqual((r["resumo"], msgs), ({"sem_whatsapp": 1}, []))
+
+    def test_parcelas_vao_10_dias_antes_de_cada_vencimento(self):
+        # cobrança em 3 parcelas emitida em 06/10: cada parcela é uma receita no ERP
+        v = Vhsys([receita(1, venc="2026-10-16"), receita(2, venc="2026-11-16"),
+                   receita(3, venc="2026-12-16")], {77: CLIENTE})
+        r, msgs = rodar(v, Asaas())
+        self.assertEqual([x["receita"] for x in r["resultados"]], [1])  # 10 dias: vai já
+        r, _ = rodar(v, Asaas(), hoje=dt.date(2026, 11, 5))
+        self.assertEqual(r["resultados"], [])  # 2ª parcela ainda a 11 dias
+        r, _ = rodar(v, Asaas(), hoje=dt.date(2026, 11, 6))
+        self.assertEqual([x["receita"] for x in r["resultados"]], [2])
+        self.assertIn("boleto enviado em 06/11/2026", v.receitas[2]["observacoes_rec"])
+        self.assertNotIn("WhatsApp", v.receitas[3]["observacoes_rec"])
+
+    def test_antecedencia_configuravel(self):
+        v = Vhsys([receita(1, venc="2026-10-08"), receita(2, venc="2026-10-16")], {77: CLIENTE})
+        with mock.patch.dict(os.environ, {"BOLETO_DIAS_ANTES": "5"}):
+            r, _ = rodar(v, Asaas(), aplicar=False)
+        self.assertEqual([x["receita"] for x in r["resultados"]], [1])  # 2ª a 10 dias: espera
+
+    def test_cobranca_unica_vai_na_hora_mesmo_vencendo_longe(self):
+        v = Vhsys([receita(venc="2026-12-20")], {77: CLIENTE})
+        r, msgs = rodar(v, Asaas())
+        self.assertEqual(r["resumo"], {"enviado": 1})
+
+    def test_primeira_parcela_vai_na_hora_e_as_demais_perto_do_vencimento(self):
+        # OS parcelada em 3x criada hoje: mesma identificação, vencimentos longe
+        parcelas = [receita(i, venc=v, ident="OS_158") for i, v in
+                    ((11, "2026-10-30"), (12, "2026-11-30"), (13, "2026-12-30"))]
+        v = Vhsys(parcelas, {77: CLIENTE})
+        r, _ = rodar(v, Asaas())
+        self.assertEqual([x["receita"] for x in r["resultados"]], [11])
+        r, _ = rodar(v, Asaas())
+        self.assertEqual(r["resultados"], [])  # cron seguinte: nada de novo
+        self.assertEqual(v.consultas_cliente, 2)  # uma consulta por cliente por rodada
+        r, _ = rodar(v, Asaas(), hoje=dt.date(2026, 11, 20))
+        self.assertEqual([x["receita"] for x in r["resultados"]], [12])
+
+    def test_primeira_parcela_leva_o_resumo_da_cobranca(self):
+        parcelas = [receita(11, venc="2026-10-30", ident="OS_158"),
+                    receita(12, venc="2026-11-30", ident="OS_158"),
+                    receita(13, venc="2026-12-30", ident="OS_158")]
+        parcelas[2]["valor_rec"] = "300.00"
+        v = Vhsys(parcelas, {77: CLIENTE})
+        r, msgs = rodar(v, Asaas())
+        texto = msgs[0][2]
+        self.assertIn("Segue o boleto de Mensalidade outubro (parcela 1 de 3) no valor de "
+                      "R$ 350,00", texto)
+        self.assertIn("Resumo da cobrança: R$ 1.000,00 em 3 parcelas\n"
+                      "• 1ª parcela: R$ 350,00, vencimento em 30/10/2026\n"
+                      "• 2ª parcela: R$ 350,00, vencimento em 30/11/2026\n"
+                      "• 3ª parcela: R$ 300,00, vencimento em 30/12/2026\n"
+                      "Os próximos boletos serão enviados por aqui 10 dias antes de cada "
+                      "vencimento.", texto)
+        self.assertLess(texto.index("Resumo"), texto.index("Linha digitável"))
+        r, msgs = rodar(v, Asaas(), hoje=dt.date(2026, 11, 20))
+        self.assertIn("(parcela 2 de 3)", msgs[0][2])
+        self.assertNotIn("Resumo", msgs[0][2])
+
+    def test_cobranca_unica_sem_resumo_nem_parcela(self):
+        v = Vhsys([receita()], {77: CLIENTE})
+        r, msgs = rodar(v, Asaas())
+        self.assertNotIn("Resumo", msgs[0][2])
+        self.assertNotIn("parcela", msgs[0][2])
+
+    def test_entrada_paga_na_hora_nao_antecipa_a_segunda(self):
+        parcelas = [receita(21, venc="2026-10-20"), receita(22, venc="2026-11-20"),
+                    receita(23, venc="2026-12-20")]
+        v = Vhsys(parcelas, {77: CLIENTE})
+        rodar(v, Asaas())  # 1ª vai
+        v.receitas[21]["liquidado_rec"] = "Sim"  # cliente pagou a entrada no mesmo dia
+        r, _ = rodar(v, Asaas())
+        self.assertEqual(r["resultados"], [])
+
+    def test_sem_identificacao_agrupa_pelo_minuto_do_cadastro(self):
+        v = Vhsys([receita(31, venc="2026-11-20", cad="2026-10-06 10:15:02"),
+                   receita(32, venc="2026-12-20", cad="2026-10-06 10:15:40"),
+                   receita(33, venc="2026-12-05", cad="2026-10-06 14:00:00")], {77: CLIENTE})
+        r, _ = rodar(v, Asaas(), aplicar=False)
+        self.assertEqual(sorted(x["receita"] for x in r["resultados"]), [31, 33])
+
+    def test_parcela_antiga_espera_a_janela(self):
+        v = Vhsys([receita(41, venc="2026-11-30", cad="2026-09-20 09:00:00")], {77: CLIENTE})
+        r, _ = rodar(v, Asaas(), aplicar=False)
+        self.assertEqual(r["resultados"], [])
 
     def test_fora_do_escopo_nao_aparece(self):
         v = Vhsys([receita(1, obs="sem cobrança"), receita(2, banco="1318757"),
@@ -182,18 +315,111 @@ class TestBoleto(unittest.TestCase):
         self.assertEqual((r["resultados"], msgs), ([], []))
 
 
+OBS_ANTIGA = "Cobranca em aberto no Asaas (pay_velho1). Cobrança de P 1402"
+
+
+class TestEmail(unittest.TestCase):
+    """Canal e-mail (08/10/2026): mesma régua, marca própria, PDF anexado."""
+
+    def rodar_email(self, v, asaas=None, falhar=False, **kw):
+        enviados = []
+
+        def enviar(destinos, assunto, texto, anexos=()):
+            if falhar:
+                raise cw.correio.ErroEmail("SMTP fora")
+            enviados.append((destinos, assunto, texto, [n for n, _ in anexos]))
+            return []
+        with mock.patch.object(cw.correio, "enviar", enviar), \
+                mock.patch.object(cw.correio, "baixar_pdf", lambda url: b"%PDF-1.4"), \
+                mock.patch.dict(os.environ, {"VHSYS_ID_BANCO_ASAAS": "", "LEMBRETE_DIAS_ATRASO": ""}):
+            r = cw.cobrar(v, asaas or Asaas(), kw.pop("etapas", ("boleto",)), aplicar=True,
+                          hoje=kw.pop("hoje", HOJE), canal="email")
+        return r, enviados
+
+    def test_boleto_por_email_com_pdf_e_marca_propria(self):
+        cliente = dict(CLIENTE, email_cliente="Fin@CSL.com.br; compras@csl.com.br")
+        obs = OBS + "\nWhatsApp: boleto enviado em 06/10/2026 (texto, pdf)."  # WhatsApp já foi
+        v = Vhsys([receita(obs=obs)], {77: cliente})
+        r, enviados = self.rodar_email(v)
+        ((destinos, assunto, texto, anexos),) = enviados
+        self.assertEqual(destinos, ["fin@csl.com.br", "compras@csl.com.br"])
+        self.assertEqual(assunto, "Boleto Mensalidade outubro: vencimento 14/10/2026")
+        self.assertIn("Olá, Csl Distribuidora LTDA!", texto)
+        self.assertIn("Linha digitável:", texto)
+        self.assertEqual(anexos, ["boleto-928695642.pdf"])
+        self.assertEqual(r["resultados"][0]["email"], "fi***@csl.com.br, co***@csl.com.br")
+        self.assertIn("E-mail: boleto enviado em 06/10/2026 (email, pdf).",
+                      v.receitas[1]["observacoes_rec"])
+        r, enviados = self.rodar_email(v)  # rodar de novo não reenvia
+        self.assertEqual((r["resultados"], enviados), ([], []))
+
+    def test_sem_email_no_cadastro(self):
+        v = Vhsys([receita()], {77: dict(CLIENTE, email_cliente="")})
+        r, enviados = self.rodar_email(v)
+        self.assertEqual((r["resumo"], enviados), ({"sem_email": 1}, []))
+
+    def test_falha_no_smtp_nao_marca(self):
+        v = Vhsys([receita()], {77: dict(CLIENTE, email_cliente="fin@csl.com.br")})
+        r, _ = self.rodar_email(v, falhar=True)
+        self.assertEqual(r["resumo"], {"erro": 1})
+        self.assertNotIn("E-mail:", v.receitas[1]["observacoes_rec"])
+
+    def test_lembrete_por_email_independe_do_whatsapp(self):
+        obs = OBS + "\nWhatsApp: lembrete de vencimento enviado em 06/10/2026 (texto, pdf)."
+        v = Vhsys([receita(venc="2026-10-06", obs=obs)], {77: dict(CLIENTE, email_cliente="a@b.com")})
+        r, enviados = self.rodar_email(v, etapas=("vencimento", "atraso"))
+        self.assertEqual(enviados[0][1], "Lembrete: seu boleto vence hoje (06/10/2026)")
+
+    def test_canais_configurados(self):
+        with mock.patch.dict(os.environ, {"SMTP_HOST": "", "SMTP_USUARIO": "", "SMTP_SENHA": ""}):
+            self.assertEqual(cw.canais_configurados(), ["whatsapp"])
+        with mock.patch.dict(os.environ, {"SMTP_HOST": "h", "SMTP_USUARIO": "u", "SMTP_SENHA": "s"}):
+            self.assertEqual(cw.canais_configurados(), ["whatsapp", "email"])
+
+
+class TestBoletosAntigos(unittest.TestCase):
+    """Boletos que o ERP anterior ligou ao Asaas (incluídos em 07/10/2026)."""
+
+    def test_so_10_dias_antes_do_vencimento_e_sem_resumo(self):
+        antigas = [receita(51, venc="2026-10-30", obs=OBS_ANTIGA, cad="2026-09-19 15:23:03"),
+                   receita(52, venc="2026-11-30", obs=OBS_ANTIGA.replace("velho1", "velho2"),
+                           cad="2026-09-19 15:23:03")]
+        v = Vhsys(antigas, {77: CLIENTE})
+        r, msgs = rodar(v, Asaas())
+        self.assertEqual(r["resultados"], [])  # nada imediato, mesmo sendo a "primeira"
+        r, msgs = rodar(v, Asaas(), hoje=dt.date(2026, 10, 20))
+        self.assertEqual([x["receita"] for x in r["resultados"]], [51])
+        self.assertEqual(r["resultados"][0]["cobranca"], "pay_velho1")
+        self.assertNotIn("parcela", msgs[0][2])
+        self.assertNotIn("Resumo", msgs[0][2])
+        self.assertEqual([m[0] for m in msgs], ["texto", "pdf"])
+        self.assertIn("WhatsApp: boleto enviado em 20/10/2026", v.receitas[51]["observacoes_rec"])
+
+    def test_lembretes_valem_para_os_antigos(self):
+        v = Vhsys([receita(53, venc="2026-10-06", obs=OBS_ANTIGA)], {77: CLIENTE})
+        r, msgs = rodar(v, Asaas(), etapas=("vencimento", "atraso"))
+        self.assertEqual(r["resultados"][0]["etapa"], "vencimento")
+
+    def test_emitida_pela_integracao_tem_prioridade_sobre_codigo_antigo(self):
+        obs = OBS_ANTIGA + "\n" + OBS
+        self.assertEqual(cw.id_cobranca({"observacoes_rec": obs}), "pay_abc")
+        self.assertTrue(cw.da_integracao({"observacoes_rec": obs}))
+        self.assertFalse(cw.da_integracao({"observacoes_rec": OBS_ANTIGA}))
+        self.assertIsNone(cw.id_cobranca({"observacoes_rec": "sem cobrança"}))
+
+
 class TestLembretes(unittest.TestCase):
     def test_dia_do_vencimento(self):
         v = Vhsys([receita(venc="2026-10-06")], {77: CLIENTE})
         r, msgs = rodar(v, Asaas(), etapas=("vencimento", "atraso"))
         self.assertEqual(r["resultados"][0]["etapa"], "vencimento")
         self.assertIn("vence hoje (06/10/2026)", msgs[0][2])
-        self.assertEqual([m[0] for m in msgs], ["texto", "pix"])  # sem PDF no lembrete
+        self.assertEqual([m[0] for m in msgs], ["texto", "pdf"])  # lembrete também leva o PDF
         self.assertIn("lembrete de vencimento enviado em 06/10/2026",
                       v.receitas[1]["observacoes_rec"])
 
     def test_boleto_mandado_hoje_dispensa_lembrete(self):
-        obs = OBS + "\nWhatsApp: boleto enviado em 06/10/2026 (texto, pdf, pix)."
+        obs = OBS + "\nWhatsApp: boleto enviado em 06/10/2026 (texto, pdf)."
         v = Vhsys([receita(venc="2026-10-06", obs=obs)], {77: CLIENTE})
         r, msgs = rodar(v, Asaas(), etapas=("vencimento", "atraso"))
         self.assertEqual(msgs, [])
@@ -226,15 +452,25 @@ class TestLembretes(unittest.TestCase):
 
 
 class Falso(http.server.BaseHTTPRequestHandler):
-    recebidos, status = [], 200
+    recebidos, user_agents, status = [], [], 200
+    resposta = {"id": "r1", "messageid": "3EB0", "status": "sent"}
 
     def do_POST(self):
         n = int(self.headers["Content-Length"])
-        Falso.recebidos.append((self.path, self.headers["token"], json.loads(self.rfile.read(n))))
+        corpo = json.loads(self.rfile.read(n))
+        Falso.recebidos.append((self.path, self.headers["token"], corpo))
+        Falso.user_agents.append(self.headers["User-Agent"])
         self.send_response(Falso.status)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
-        self.wfile.write(b'{"error": "invalid"}' if Falso.status >= 400 else b'{"id": "m1"}')
+        if Falso.status >= 400:
+            resposta = {"error": "invalid"}
+        elif self.path.endswith("/chat/check"):
+            resposta = [{"query": q, "isInWhatsapp": q != "5511900000000",
+                         "jid": "551188887777@s.whatsapp.net"} for q in corpo["numbers"]]
+        else:
+            resposta = Falso.resposta
+        self.wfile.write(json.dumps(resposta).encode())
 
     def log_message(self, *a):
         pass
@@ -252,7 +488,8 @@ class TestTransporte(unittest.TestCase):
         cls.srv.shutdown()
 
     def setUp(self):
-        Falso.recebidos, Falso.status = [], 200
+        Falso.recebidos, Falso.user_agents, Falso.status = [], [], 200
+        Falso.resposta = {"id": "r1", "messageid": "3EB0", "status": "sent"}
         self.env = mock.patch.dict(os.environ, {
             "ZAPTOS_URL": f"{self.base}/whatsapp/", "ZAPTOS_TOKEN": "tok-zaptos",
             "UAZAPI_URL": "http://nao-usar", "UAZAPI_TOKEN": "antigo",
@@ -271,12 +508,38 @@ class TestTransporte(unittest.TestCase):
         self.assertEqual((c2, b2["type"], b2["file"], b2["docName"]),
                          ("/whatsapp/send/media", "document", "https://x/b.pdf", "boleto-1.pdf"))
 
+    def test_user_agent_proprio_para_passar_pelo_cloudflare(self):
+        # caso real (06/10/2026): Python-urllib/3.x levava HTTP 403 "error code: 1010"
+        whatsapp.enviar_texto("5511988887777", "oi")
+        self.assertEqual(Falso.user_agents, [whatsapp.USER_AGENT])
+        self.assertNotIn("Python-urllib", whatsapp.USER_AGENT)
+
     def test_nomes_antigos_ainda_valem(self):
         os.environ.pop("ZAPTOS_URL")
         os.environ.pop("ZAPTOS_TOKEN")
         os.environ["UAZAPI_URL"] = f"{self.base}/uaz"
         whatsapp.enviar_texto("5511988887777", "oi")
         self.assertEqual(Falso.recebidos[0][:2], ("/uaz/send/text", "antigo"))
+
+    def test_verifica_o_numero_e_usa_o_jid_do_whatsapp(self):
+        self.assertEqual(whatsapp.destino_verificado("5511988887777"), "551188887777")
+        self.assertIsNone(whatsapp.destino_verificado("5511900000000"))
+        self.assertEqual(Falso.recebidos[0][:1] + (Falso.recebidos[0][2],),
+                         ("/whatsapp/chat/check", {"numbers": ["5511988887777"]}))
+        self.assertEqual(whatsapp.destino_verificado("123@g.us"), "123@g.us")
+        self.assertEqual(len(Falso.recebidos), 2)  # grupo não passa pelo check
+
+    def test_resposta_200_com_falha_vira_erro(self):
+        Falso.resposta = {"status": "failed"}
+        with self.assertRaises(whatsapp.ErroWhatsapp):
+            whatsapp.enviar_texto("5511988887777", "oi")
+        Falso.resposta = {"error": "number not on whatsapp"}
+        with self.assertRaises(whatsapp.ErroWhatsapp):
+            whatsapp.enviar_texto("5511988887777", "oi")
+
+    def test_resumo_do_envio(self):
+        r = whatsapp.enviar_texto("5511988887777", "oi")
+        self.assertEqual(whatsapp.resumo_envio(r), {"status": "sent", "mensagem": "3EB0"})
 
     def test_erro_guarda_o_status(self):
         Falso.status = 400
