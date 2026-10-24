@@ -181,3 +181,17 @@ evidência em `docs/cliente/diagnostico.md` §7.1 e §7.2.
 - Migração do Acercom: clientes (API) e locações futuras (lançamento manual no app).
 - Valor de reposição dos 209 itens, quantidade de 34 e preço de 9 no VHSYS.
 - Aprovação do documento `docs/cliente/Rey-Festas-Projeto-CRM-e-IA.pdf`.
+
+## Plano de contas aplicado no VHSYS (24/10/2026)
+
+- Proposta de 97 categorias **aprovada** pela Rey Festas.
+- `scripts/categorias_vhsys.py --aplicar`: 97 criadas (ids 9875014 a 9875110); a
+  simulação seguinte deu 97 existentes, 0 a criar, 0 conflitos.
+- A pedido do mestre, as categorias padrão do VHSYS foram **excluídas** (vão para a
+  lixeira, recuperáveis): 45 de 47.
+- Mantidas por estarem em uso:
+  - `OUTRAS DESPESAS`: conta a pagar em aberto "Rey Festas Gestão", R$ 400,
+    vencimento 10/10/2026. Reclassificar numa categoria do plano e depois excluir.
+  - `Saldo Inicial`: saldo de abertura no extrato da conta bancária. Não é linha do
+    DRE; fica.
+- Falta: ligar cada categoria ao grupo do DRE em Parâmetros > Categorias (a API não faz).
