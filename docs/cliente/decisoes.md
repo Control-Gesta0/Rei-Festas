@@ -135,3 +135,49 @@ Se o sistema de locação tiver API, o passo 3 pode ser automatizado depois.
 8. O app de locação é o Acercom? Ele tem API? Qual o papel do VHSYS então
    (financeiro, cadastro, os dois)?
 9. Regras de diária, desconto à vista e condição de pagamento padrão.
+
+## Atualização de 06 e 07/10/2026 (sessão do Drive, unificada aqui em 24/10)
+
+Respostas da Karol (financeiro, braço direito do Noel) pelo WhatsApp. Detalhe e
+evidência em `docs/cliente/diagnostico.md` §7.1 e §7.2.
+
+| # | Decisão | Origem |
+|---|---|---|
+| D5 | O app de locação é o **app Locações do VHSYS**. O Acercom (sistema atual) será desligado | Karol, 06/10 |
+| D6 | Locação e financeiro (Stone, integração nativa) ficam no VHSYS; o GHL cuida da conversa, do funil de vendas e dos lembretes. O funil "Locação: Operação" no GHL foi criado e removido no mesmo dia | mestre, 07/10 |
+| D7 | Sinal de 50%; restante até **1 dia antes** do evento; semana do evento = integral; **sem pagamento na entrega** (exceção só com a Karol) | Karol, 06-07/10 |
+| D8 | Desconto **7%** à vista para todos, inclusive parceiros; acima disso só Karol ou Noel | Karol, 07/10 |
+| D9 | Frete = km da loja ao local (rota de carro) × R$ 2 × 4 trechos, **mínimo R$ 50** | Karol, 06-07/10 |
+| D10 | Retirada sábado 9h às 11h30; **não há devolução no sábado** (locação de fim de semana: sexta a segunda) | Karol, 06-07/10 |
+| D11 | A IA **pode falar o preço de tabela**, avisando que o valor final é confirmado | Karol, 06/10 |
+| D12 | **Preços de dezembro são os mesmos** do resto do ano | mestre, 06/10 |
+| D13 | Lembretes automáticos de saldo, véspera da entrega e devolução: **sim** | Karol, 06/10 |
+| D14 | Uma única instância de WhatsApp no GHL ("Atendimento"). Lista de exclusão: Noel, Diogo (motorista), Karol, Fabio (consultor) | Karol e mestre, 06/10 |
+| D15 | A Karol atende do início ao fim e recebe o pedido da IA | mestre, 06/10 |
+
+### O que muda nas decisões anteriores
+
+- **D1 (proposta):** continua. A IA soma o pedido pela tabela (em código) e manda o
+  resumo com valores; a Karol confere a disponibilidade no app Locações e manda o
+  orçamento oficial. No funil, a etapa da IA se chama **"Pedido completo"** (é o
+  "Proposta enviada" de D1).
+- **D1, acréscimo de dezembro:** cancelado por D12.
+- **D2 (buffet/evento):** **ainda não está no prompt nem no funil**. Falta: porta
+  consultiva, calendário do consultor (Fabio?) e a etapa "Apresentação agendada".
+- **D3:** resolvido por D5. O app Locações não tem API (testado em 07/10); a IA não
+  consulta disponibilidade. Risco aberto: pelo manual, a reserva de estoque do app
+  vale até a locação ser finalizada, sem olhar a data. Teste pedido ao cliente.
+- **D4 (cliente no VHSYS):** continua. No prompt atual, o cadastro é pedido no fim
+  da coleta (depois de itens, data e logística), como a equipe já faz hoje, e não
+  na abertura.
+- "Ainda em aberto" 2, 6 e 9: respondidos por D7 a D11 e pela carga do catálogo
+  (209 produtos no VHSYS, `scripts/importar_catalogo.py`).
+
+### Pendências desta parte
+
+- Multa de cancelamento e taxa de higienização (Karol confirmando com o Noel).
+- Nome da atendente virtual e link do catálogo com fotos.
+- Teste de reserva por data no app Locações.
+- Migração do Acercom: clientes (API) e locações futuras (lançamento manual no app).
+- Valor de reposição dos 209 itens, quantidade de 34 e preço de 9 no VHSYS.
+- Aprovação do documento `docs/cliente/Rey-Festas-Projeto-CRM-e-IA.pdf`.

@@ -1,3 +1,6 @@
 .env
 .env.*
 __pycache__/
+!.env.example
+saida/
+de-para.csv

@@ -1,0 +1,226 @@
+### Louças
+- LOU-001 · Prato Refeição Fundo · R$ 3,50
+- LOU-002 · Prato Refeição Laguna · R$ 1,50
+- LOU-003 · Prato Refeição Octagonal · R$ 1,45
+- LOU-004 · Prato Refeição Raso Plaza · R$ 1,10
+- LOU-005 · Prato Refeição Simples · R$ 1,20
+- LOU-006 · Prato Sobremesa Laguna · R$ 1,30
+- LOU-007 · Prato Sobremesa Octagonal · R$ 1,30
+- LOU-008 · Prato Sobremesa Raso Plaza · R$ 1,00
+- LOU-009 · Prato Sobremesa Simples · R$ 1,10
+- LOU-010 · Refratário Vidro Retangular - Marinex · R$ 20,00
+- LOU-011 · Saladeira / Centro de Mesa - Vidro · R$ 20,00
+- LOU-012 · Sousplat Azul · R$ 3,50
+- LOU-013 · Sousplat Dourado · R$ 3,50
+- LOU-014 · Sousplat Fendi · R$ 3,50
+- LOU-015 · Sousplat Ouro Velho · R$ 3,50
+- LOU-016 · Sousplat Rattan · R$ 4,00
+- LOU-017 · Sousplat Rattan Raso · R$ 5,00
+- LOU-018 · Sousplat Rosa Abacaxi · R$ 3,50
+- LOU-019 · Sousplat Verde Água · R$ 3,50
+- LOU-020 · Sousplat Vermelho · R$ 3,50
+- LOU-021 · Xicara Cafe C/ Pires - Redondo P · R$ 3,00
+- LOU-022 · Xicara Cha C/ Pires - Redondo · R$ 3,50
+
+### Talheres
+- TAL-001 · Colher Café Class · R$ 1,00
+- TAL-002 · Colher Chá Class · R$ 1,00
+- TAL-003 · Colher p/ Arroz Top Pratic 32,5CM · R$ 5,00
+- TAL-004 · Colher Sobremesa Class · R$ 1,10
+- TAL-005 · Concha p/ Molho M - Inox · R$ 5,00
+- TAL-006 · Espatula - Inox · R$ 3,50
+- TAL-007 · Faca Refeição Class · R$ 1,20
+- TAL-008 · Faca Sobremesa Class · R$ 1,10
+- TAL-009 · Garfo Refeição Class · R$ 1,20
+- TAL-010 · Garfo Sobremesa Class · R$ 1,10
+- TAL-011 · Garfo Sobremesa Simples · R$ 0,90
+- TAL-012 · Pegador para Salada Arienzo 28,5CM · R$ 8,00
+- TAL-013 · Pegador Universal Arienzo 20,5CM · R$ 8,00
+
+### Copos e Taças
+- COP-001 · Copo de Chopp 300ML - Tulipa · R$ 1,20
+- COP-002 · Copo de Shot · R$ 1,50
+- COP-003 · Copo Long Drink · R$ 1,20
+- COP-004 · Copo Stylo - Água · R$ 1,20
+- COP-005 · Copo Whisky Curto · R$ 1,20
+- COP-006 · Taça Bistrô 300ML - Vinho Tinto · R$ 1,20
+- COP-007 · Taça Bistrô 350ML - Água · R$ 1,20
+- COP-008 · Taça Champanhe Bistrô · R$ 1,50
+- COP-009 · Taça Chef Sommelier 470ML · R$ 4,00
+- COP-010 · Taça Diamod - 350ML · R$ 3,50
+- COP-011 · Taça Martini Grande · R$ 20,00
+
+### Utensílios de Buffet
+- UTE-001 · Balde Champagne Inox · R$ 20,00
+- UTE-002 · Balde Gelo Inox · R$ 15,00
+- UTE-003 · Bandeja Antiaderente Garçom · R$ 20,00
+- UTE-004 · Bandeja Inox Garçom · R$ 15,00
+- UTE-005 · Botijão Térmico - 6LTS · R$ 45,00
+- UTE-006 · Cesta de Vime G · R$ 10,00
+- UTE-007 · Cesta de Vime M · R$ 8,00
+- UTE-008 · Champanheira de Mesa Em Inox · R$ 20,00
+- UTE-009 · Cuba Dupla p/ Rechaud · R$ 25,00
+- UTE-010 · Cuba Simples p/ Rechaud · R$ 30,00
+- UTE-011 · Garrafa Térmica 1,8 LTS · R$ 15,00
+- UTE-012 · Jarra Vidro 1,5 LTS · R$ 15,00
+- UTE-013 · Jarra Vidro P · R$ 10,00
+- UTE-014 · Pinça p/ Gelo Arienzo 16CM · R$ 5,00
+- UTE-015 · Rechaud Banho Maria Cuba Dupla · R$ 70,00
+- UTE-016 · Rechaud Banho Maria Cuba Simples · R$ 70,00
+- UTE-017 · Rechaud de Barro 6 LTS · R$ 50,00
+- UTE-018 · Rechaud de Barro 8 LTS · R$ 60,00
+- UTE-019 · Rechaud Redondo 8 LTS com Tampa de Vidro · R$ 60,00
+- UTE-020 · Rechaud Redonto 5 LTS com Tampa de Vidro · R$ 50,00
+- UTE-021 · Rechaud Retangular de Vidro · R$ 40,00
+- UTE-022 · Samovar p/ Chá - Prata · R$ 70,00
+- UTE-023 · Suporte para Doces/salgados G · R$ 40,00
+- UTE-024 · Suporte para Doces/salgados M · R$ 30,00
+- UTE-025 · Suporte para Doces/salgados P · R$ 20,00
+- UTE-026 · Suqueira 4,800 Ltrs · R$ 50,00
+- UTE-027 · Tigela Chinesa 400 ML - Sopas e Cereais · R$ 10,00
+- UTE-028 · Tina Plástica para Bebidas 160 Litros · R$ 30,00
+- UTE-029 · Travessa Coração Cristal · R$ 20,00
+- UTE-030 · Travessa de Barro G · R$ 45,00
+- UTE-031 · Travessa de Barro M · R$ 30,00
+- UTE-032 · Travessa de Barro P · R$ 20,00
+- UTE-033 · Travessa Flor Vidro · R$ 20,00
+- UTE-034 · Travessa Retangular de Vidro p/ Frios · R$ 20,00
+- UTE-035 · Travessa Retangular Trabalhada de Coração · R$ 20,00
+- UTE-036 · Travessa Retangular Tralhada de Flores · R$ 20,00
+
+### Equipamentos
+- EQP-001 · Churrasqueira Grande 0,80 X 0,60 · R$ 120,00
+- EQP-002 · Churrasqueira Média 1,00 X 0,40 · R$ 80,00
+- EQP-003 · Fogão Industrial de 4 Bocas · R$ 250,00
+- EQP-004 · Forno Elétrico 110V · R$ 50,00
+- EQP-005 · Ventilador 110/220V · R$ 180,00
+
+### Mobiliário
+- MOB-001 · Aparador 1,54 X 0,42 · R$ 200,00
+- MOB-002 · Aparador Industrial · R$ 100,00
+- MOB-003 · Banqueta para Mesa Bistrô · R$ 35,00
+- MOB-004 · Cadeira Chanel Branca · R$ 15,00
+- MOB-005 · Cadeira Plástica com Braço - Branca · R$ 6,00
+- MOB-006 · Cadeira Plástica Sem Braço - Branca · R$ 4,00
+- MOB-007 · Cadeira Tiffany Marrom · R$ 15,00
+- MOB-008 · Carrinho de Chá Rústico · R$ 120,00
+- MOB-009 · Jogo de Mesa 0,70 X 0,70 com 4 Cadeiras S/braço · R$ 20,00
+- MOB-010 · Jogo de Mesa 0,70X0,70 com 04 Cadeiras C/ Braço · R$ 26,00
+- MOB-011 · Mesa Bistrô Alta Tampo de Vidro · R$ 65,00
+- MOB-012 · Mesa de Madeira Caipira - 1,74 X 0,87 · R$ 150,00
+- MOB-013 · Mesa de Madeira Rustica - 2,20 X 1,00 · R$ 300,00
+- MOB-014 · Mesa de Madeira Rustica - 2,50 X 1,00 · R$ 350,00
+- MOB-015 · Mesa Maleta branca- 1,50CM X 75CM · R$ 65,00
+- MOB-016 · Mesa Plástica Quadrada 0, 70 X 0,70 - Branca · R$ 13,00
+- MOB-017 · Mesa Pranchão 2,00 X 0,80 · R$ 30,00
+- MOB-018 · Mesa Redonda Madeira 1,10 (6 Lugares) · R$ 13,00
+- MOB-019 · Mesa Redonda Madeira 1,30 (8 Lugares) · R$ 17,00
+- MOB-020 · Mesa Redonda Madeira 1,45 (10 Lugares) · R$ 20,00
+- MOB-021 · Sofá Namoradeira Azul Marinho · R$ 100,00
+
+### Toalhas e Tecidos
+- TEC-001 · Caminho de Mesa - Amarelo · valor com a equipe
+- TEC-002 · Caminho de Mesa - Laranja · valor com a equipe
+- TEC-003 · Caminho de Mesa - Lilás · valor com a equipe
+- TEC-004 · Caminho de Mesa - Roxo · valor com a equipe
+- TEC-005 · Caminho de Mesa - Verde · valor com a equipe
+- TEC-006 · Capa de Cadeira Branca · R$ 3,50
+- TEC-007 · Guardanapo Adamascado Branco · R$ 3,50
+- TEC-008 · Guardanapo Adamascado Florido · R$ 3,50
+- TEC-009 · Guardanapo Branco Rafia · R$ 3,50
+- TEC-010 · Guardanapo de Linho Bege · R$ 3,50
+- TEC-011 · Guardanapo de Tecido - Branco · R$ 2,00
+- TEC-012 · Guardanapo Marsala · R$ 3,50
+- TEC-013 · Guardanapo Verde Oliva Bordado · R$ 3,50
+- TEC-014 · Toalha Adamascada Bege - 2,80M · R$ 24,00
+- TEC-015 · Toalha Adamascada Branca - 2,80M · R$ 24,00
+- TEC-016 · Toalha Redonda listrada azul e branco · R$ 24,00
+- TEC-017 · Toalha Adamascada Dourada - 2,80M · R$ 24,00
+- TEC-018 · Toalha Adamascada Rose - 3,00M · R$ 24,00
+- TEC-019 · Toalha Amarela - 0,75 X 0,75 · R$ 6,00
+- TEC-020 · Toalha Amarela - 1,50 X 1,50 · R$ 9,00
+- TEC-021 · Toalha Azul Bebe - 0,75 X 0,75 · R$ 6,00
+- TEC-022 · Toalha Azul Bebe - 1,50 X 1,50 · R$ 9,00
+- TEC-023 · Toalha Azul Marinho - 1,50 X 1,50 · R$ 9,00
+- TEC-024 · Toalha Azul Marinho - 0,75 X 0,75 · R$ 6,00
+- TEC-025 · Toalha Azul Royal - 0,75 X 0,75 · R$ 6,00
+- TEC-026 · Toalha Azul Royal - 1,50 X 1,50 · R$ 9,00
+- TEC-027 · Toalha Branca - 0,75 X 0,75 · R$ 6,00
+- TEC-028 · Toalha Branca - 1,50 X 1,50 · R$ 9,00
+- TEC-029 · Toalha Chumbo - 0,75 X 0,75 · R$ 6,00
+- TEC-030 · Toalha Chumbo - 1,50 X 1,50 · R$ 9,00
+- TEC-031 · Toalha Dourada - 1,50 X 1,50 · R$ 9,00
+- TEC-032 · Toalha Dourado - 0,75 X 0,75 · R$ 6,00
+- TEC-033 · Toalha Florida - 1,50 X 1,50 · R$ 9,00
+- TEC-034 · Toalha Adamascada Florida - 2,80M · R$ 24,00
+- TEC-035 · Toalha Laranja - 1,50 X 1,50 · R$ 9,00
+- TEC-036 · Toalha Lilás - 0,75 X 0,75 · R$ 6,00
+- TEC-037 · Toalha Lilás - 1,50 X 1,50 · R$ 9,00
+- TEC-038 · Toalha Marrom - 1,50 X 1,50 · R$ 9,00
+- TEC-039 · Toalha Rafia Marsala - 2,80M · R$ 24,00
+- TEC-040 · Toalha Mostarda - 0,75 X 0,75 · R$ 6,00
+- TEC-041 · Toalha Mostarda - 1,50 X 1,50 · R$ 9,00
+- TEC-042 · Toalha Bege - 1,50 X 1,50 · R$ 9,00
+- TEC-043 · Toalha Oxford Branca - 1,20M · R$ 9,00
+- TEC-044 · Toalha Oxford Branca - 1,20X1,20 · R$ 9,00
+- TEC-045 · Toalha Oxford Branca - 2,0M · R$ 9,00
+- TEC-046 · Toalha Oxford Branca - 2,20M · R$ 9,00
+- TEC-047 · Toalha Oxford Branca - 2,40M · R$ 9,00
+- TEC-048 · Toalha Oxford Branca - 2,60 X 1,65M · valor com a equipe
+- TEC-049 · Toalha Oxford Branca 1,10 X 1,10 · R$ 9,00
+- TEC-050 · Toalha Branca Perfurada - 1,50 X 1,50 · R$ 9,00
+- TEC-051 · Toalha Pranchão Branca - 3,50M · R$ 40,00
+- TEC-052 · Toalha Pranchão Preta - 3,50M · R$ 40,00
+- TEC-053 · Toalha Preta - 0,75 X 0,75 · R$ 6,00
+- TEC-054 · Toalha Preta - 1,50 X 1,50 · R$ 9,00
+- TEC-055 · Toalha Rafia 2,80M - Cinza · R$ 24,00
+- TEC-056 · Toalha Rafia 2,80M - Branca · R$ 24,00
+- TEC-057 · Toalha Redonda 2,00M - Verde Alecriim (mesa de 06 · R$ 17,00
+- TEC-058 · Toalha Redonda Branca - 1,50M · R$ 9,00
+- TEC-059 · Toalha Redonda Branca - 2,60M (mesa de 6) · R$ 14,00
+- TEC-060 · Toalha Redonda Branca - 2,80M · R$ 17,00
+- TEC-061 · Toalha Redonda Branca - 3,0M · valor com a equipe
+- TEC-062 · Toalha Redonda Preta - 2,60M (mesa de 6) · R$ 14,00
+- TEC-063 · Toalha Rosa - 0,75 X 0,75 · R$ 6,00
+- TEC-064 · Toalha Rosa Bebê- 1,50 X 1,50 · R$ 9,00
+- TEC-065 · Toalha Rosa Pink - 1,50 X 1,50 · R$ 9,00
+- TEC-066 · Toalha Roxa - 1,50 X 1,50 · R$ 9,00
+- TEC-067 · Toalha Roxo - 0,75 X 0,75 · R$ 6,00
+- TEC-068 · Toalha Salmão - 0,75 X 0,75 · R$ 6,00
+- TEC-069 · Toalha Salmão - 1,50 X 1,50 · R$ 9,00
+- TEC-070 · Toalha Verde Bandeira - 1,50 X 1,50 · R$ 9,00
+- TEC-071 · Toalha Verde Limão - 1,50 X 1,50 · R$ 9,00
+- TEC-072 · Toalha Verde Musgo - 0,75 X 0,75 · R$ 6,00
+- TEC-073 · Toalha Verde Musgo - 1,50 X 1,50 · R$ 9,00
+- TEC-074 · Toalha Verde Pistache - 0,75 X 0,75 · R$ 6,00
+- TEC-075 · Toalha Verde Pistache - 1,50 X 1,50 · R$ 9,00
+- TEC-076 · Toalha Verde Àgua - 1,50 X 1,50 · R$ 9,00
+- TEC-077 · Toalha Verde Água - 0,75 X 0,75 · R$ 6,00
+- TEC-078 · Toalha Vermelha - 0,75 X 0,75 · R$ 6,00
+- TEC-079 · Toalha Vermelha - 1,50 X 1,50 · R$ 9,00
+- TEC-080 · Toalha Xadrez Verde e Branca - 1,50 X 1,50 · R$ 9,00
+- TEC-081 · Toalha Xadrez Vermelha e Branca - 1,50 X 1,50 · R$ 9,00
+- TEC-082 · Toalha Azul 1,5x1,5 · R$ 9,00
+
+### Decoração
+- DEC-001 · Bolacha Rústica de Madeira Natural · R$ 10,00
+- DEC-002 · Bolacha Rústica de Madeira Nobre · R$ 15,00
+- DEC-003 · Boleira Amarela Ceramica · R$ 10,00
+- DEC-004 · Boleira Rosa Ceramica com Detalhe Coração · R$ 20,00
+- DEC-005 · Bolo Cenografico Modulos · R$ 10,00
+- DEC-006 · Bomboniere Cristal G · R$ 20,00
+- DEC-007 · Bomboniere Cristal M · R$ 15,00
+- DEC-008 · Bomboniere Cristal P · R$ 10,00
+- DEC-009 · Tapete Azul 1,00X25,00 · R$ 100,00
+- DEC-010 · Tapete Bege 1,00X25,00 · R$ 100,00
+- DEC-011 · Tapete Preto 1,5 X 2 · valor com a equipe
+- DEC-012 · Tapete Preto 2 X 2,5 · valor com a equipe
+- DEC-013 · Tapete Roxo 1,00X25,00 · R$ 100,00
+- DEC-014 · Tapete Verde 1,00X25,00 · R$ 100,00
+- DEC-015 · Tapete Vermelho 1,00X25,00 · R$ 100,00
+- DEC-016 · Vaso Perolado G · R$ 100,00
+- DEC-017 · Vaso Perolado M · R$ 70,00
+- DEC-018 · Vaso Perolado P · R$ 50,00
+
+### Áudio e Vídeo
+- AUD-001 · Transformador · R$ 150,00
