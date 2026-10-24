@@ -195,3 +195,33 @@ evidência em `docs/cliente/diagnostico.md` §7.1 e §7.2.
   - `Saldo Inicial`: saldo de abertura no extrato da conta bancária. Não é linha do
     DRE; fica.
 - Falta: ligar cada categoria ao grupo do DRE em Parâmetros > Categorias (a API não faz).
+
+## DRE montado no VHSYS (24/10/2026)
+
+O vínculo categoria → linha do DRE no VHSYS não fica na categoria: fica num
+**modelo de DRE** (Financeiro > DRE Gerencial > Gerenciar modelos). Criado o modelo
+**"DRE Rey Festas"** pela tela (a API não cobre), com 12 grupos na ordem da proposta:
+
+| Grupo | Tipo no VHSYS | Categorias |
+|---|---|---|
+| (+) Receita bruta | Receita | 10.01, 10.02 |
+| (-) Deduções da receita | Despesa | 20.01.01-02, 20.02.01-02 |
+| (=) Receita líquida | Totalizador | Receita bruta + Deduções |
+| (-) Custos dos serviços | Despesa | 30.01.01-05, 30.02.01-06, 30.03.01-04, 30.04.01-03 |
+| (=) Margem de contribuição | Totalizador | + Custos |
+| (-) Despesas com pessoal | Despesa | 40.01.01-09 |
+| (-) Despesas administrativas e comerciais | Despesa | 50.01.01-14, 50.02.01-04 |
+| (=) Resultado operacional | Totalizador | + Pessoal + Administrativas |
+| (+/-) Resultado financeiro | Receitas e Despesas | 10.03.01-03, 50.03.01-05 |
+| (+/-) Resultado não operacional | Receitas e Despesas | 60.01.01, 60.01.05, 70.01.01 |
+| (=) Resultado líquido | Totalizador | + Financeiro + Não operacional |
+| Abaixo do resultado: investimentos, empréstimos e retiradas | Receitas e Despesas | 60.01.02-03, 70.02.01-04, 70.03.01-02, 90.01.01 |
+
+- 71 categorias vinculadas (as 73 lançáveis menos 60.01.04 e 70.01.02, transferências,
+  fora do DRE). Títulos (10, 20.01...) não entram: não recebem lançamento.
+- Conferido após recarregar a página e gerando o relatório DRE Gerencial anual 2026.
+- Cicatrizes da tela: o nome do grupo com "−" (sinal de menos Unicode) dá "Erro
+  interno do servidor"; usar "-". Grupo novo entra no topo e categoria nova entra no
+  topo do grupo (dentro de cada grupo a ordem ficou decrescente, só estética).
+- Pendente: reclassificar a conta a pagar "Rey Festas Gestão" (R$ 400) que está em
+  `OUTRAS DESPESAS`, depois excluir essa categoria.
