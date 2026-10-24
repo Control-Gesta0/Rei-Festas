@@ -4,3 +4,4 @@ __pycache__/
 !.env.example
 saida/
 de-para.csv
+dados/

@@ -226,3 +226,20 @@ O vínculo categoria → linha do DRE no VHSYS não fica na categoria: fica num
 - A conta a pagar "Rey Festas Gestão" (R$ 400) era teste e foi excluída pelo mestre;
   `OUTRAS DESPESAS` foi excluída em seguida. A conta ficou com as 97 categorias do
   plano + `Saldo Inicial` (saldo de abertura do banco, fora do DRE).
+
+## Migração do Acercom (LocPlus 5.4.25): levantamento (24/10/2026)
+
+- O LocPlus roda numa sessão remota HTML5 (canvas): não há texto na página, nem
+  exportação, nem cópia da grade. Exportar pelo programa salva no servidor da Acercom.
+- **Clientes:** códigos até ~9.400. Caminho recomendado: exportação pedida ao suporte
+  da Acercom (mensagem pronta enviada ao mestre). Decisão pendente: migrar todos ou só
+  quem alugou nos últimos 2-3 anos.
+- **Pedidos em aberto** (tela Devolução), lidos um a um em 24/10: **100 pedidos**.
+  - 54 **futuros** (evento depois de 24/10): out 7, nov 35, dez 10, mar/2027 2; 44
+    clientes; 14 da MRV. São estes que vão para o app Locações.
+  - 26 em andamento (devolução até ~28/10): terminar no Acercom.
+  - 20 com devolução vencida (14 a 23/10): provável falta de baixa; Karol confirma.
+  - Lista com nomes e telefones em `dados/` (fora do git).
+- **Cicatriz:** o "Detalhe" da tela Devolução é o formulário de baixa (vem com data
+  efetiva = hoje e Retorno preenchido). Não usar para leitura; um Enter registra a
+  devolução. Itens dos pedidos: ler por relatório (somente leitura) ou pela exportação.
