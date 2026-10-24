@@ -223,5 +223,6 @@ O vínculo categoria → linha do DRE no VHSYS não fica na categoria: fica num
 - Cicatrizes da tela: o nome do grupo com "−" (sinal de menos Unicode) dá "Erro
   interno do servidor"; usar "-". Grupo novo entra no topo e categoria nova entra no
   topo do grupo (dentro de cada grupo a ordem ficou decrescente, só estética).
-- Pendente: reclassificar a conta a pagar "Rey Festas Gestão" (R$ 400) que está em
-  `OUTRAS DESPESAS`, depois excluir essa categoria.
+- A conta a pagar "Rey Festas Gestão" (R$ 400) era teste e foi excluída pelo mestre;
+  `OUTRAS DESPESAS` foi excluída em seguida. A conta ficou com as 97 categorias do
+  plano + `Saldo Inicial` (saldo de abertura do banco, fora do DRE).
