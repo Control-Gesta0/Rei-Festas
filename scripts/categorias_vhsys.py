@@ -20,8 +20,8 @@ de-para dos lançamentos antigos.
 
 Com --aplicar, o script só grava se não houver nenhum conflito. Rodar de novo não
 duplica nada, porque o que já existe é pulado. A trava de conflito também impede
-gravar na conta errada: outra empresa com plano numerado (a Control Gestão, por
-exemplo) tem os mesmos códigos com outros nomes.
+gravar na conta errada: outra empresa com plano numerado tem os mesmos códigos
+com outros nomes.
 
 Autenticação: VHSYS_ACCESS_TOKEN e VHSYS_SECRET_ACCESS_TOKEN da conta da Rey Festas.
 
@@ -36,7 +36,7 @@ import time
 import unicodedata
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "api" / "_lib"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import vhsys_api  # noqa: E402
 
 LIMITE_DESCRICAO = 50
