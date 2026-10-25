@@ -234,6 +234,13 @@ export const CRM_MAP = {
       ja_e_cliente: /meu pedido|pedido (que|j[aá])|j[aá] (fechei|reservei|paguei|aluguei|loquei|fiz o pedido)|comprovante|pagamento|paguei|pago|boleto|saldo|estorno|reembolso|devolu|devolver|avaria|quebr|manchad|sujo|suja|rasg|faltou|faltando|faltava|veio errad|motorista|onde est[aá]|que horas (chega|vem|v[aã]o)|reclam|mudar|alterar|trocar|cancelar|nota fiscal|recibo/i,
       pediu_humano: /humano|pessoa|atendente|karol|noel|algu[eé]m|falar com|me liga|liga[cç][aã]o|ligar/i,
     } as Record<string, RegExp>,
+    /** evidência que NÃO serve para o motivo, mesmo batendo o sinal (o modelo confunde) */
+    vetoMotivo: {
+      // "tô falando com uma pessoa ou robô?" é pergunta, não pedido de humano
+      pediu_humano: { re: /rob[oô]|\bbot\b|\bia\b|intelig[eê]ncia artificial|m[aá]quina|autom[aá]tic/i, salvo: /quero falar|falar com|me (passa|transfere)|chama (a|o|algu)/i, msg: 'perguntar se é robô não é pedir humano. Responda que é a assistente virtual da Rey Festas e siga montando o pedido' },
+      // perguntar se a loja aluga um item (mesmo que não alugue) é atendimento de locação
+      fora_do_escopo: { re: /\b(?:alug|loca[cç]|voc[eê]s (?:t[eê]m|tem|trabalham))/i, msg: 'pergunta sobre item para alugar é do atendimento. Se a loja não aluga, diga que não tem e NÃO finalize' },
+    } as Record<string, { re: RegExp; salvo?: RegExp; msg: string }>,
   },
 
   alertas: [

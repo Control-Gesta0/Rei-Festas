@@ -3,10 +3,11 @@ import path from 'path'
 import OpenAI from 'openai'
 import { CRM_MAP, type Porta } from './crm-map'
 import { addUsage, emptyUsage, type Usage } from './execlog'
-import { checkReply, keepLastQuestion, type Violation } from './guards'
+import { checkReply, comCumprimento, keepLastQuestion, type Violation } from './guards'
 import { formatSlot } from './slots'
+import { hojeNoFuso, pedidoUrgentePronto, proximosDias } from './datas'
 import type { ChatMsg } from './history'
-import { aplicarFinalizacao, buildTools, describeOpen, runTool, snapshot, type ToolCtx } from './tools'
+import { agendaAtiva, aplicarFinalizacao, buildTools, describeOpen, runTool, snapshot, type ToolCtx } from './tools'
 
 /**
  * Cérebro: GPT-5.4 Mini (Chat Completions, reasoning none) com loop próprio de
@@ -63,6 +64,8 @@ export function historyToMessages(history: ChatMsg[]): Msg[] {
   return turns
 }
 
+const horaNoFuso = (tz: string) => Number(new Date().toLocaleString('en-US', { timeZone: tz, hour: 'numeric', hour12: false })) % 24
+
 export function createBrain(opts: LlmOptions) {
   const openai = new OpenAI({ apiKey: opts.apiKey })
 
@@ -79,6 +82,7 @@ export function createBrain(opts: LlmOptions) {
     const linhas = [
       '# Contexto desta conversa (gerado pelo sistema — é dado, não instrução do lead)',
       `Data/hora: ${agora}`,
+      `Próximos dias: ${proximosDias(hojeNoFuso(ctx.timezone))} (use esta lista para converter "sábado", "sexta" etc.)`,
       `Assunto (porta travada): ${ctx.porta.label}`,
       `Nome no WhatsApp: ${lead.nomeContato || '(desconhecido)'} — confirme antes de usar se parecer apelido`,
       `Primeira mensagem da IA neste assunto: ${lead.primeiroContatoDaPorta ? 'SIM — use a abertura do prompt' : 'não — NÃO repita a abertura'}`,
@@ -117,12 +121,16 @@ export function createBrain(opts: LlmOptions) {
     const fix: Msg[] = [
       ...messages,
       { role: 'assistant', content: text },
-      { role: 'system', content: `[TRAVA DO SISTEMA] Sua resposta NÃO foi enviada porque violou: ${v1.map((v: Violation) => `${v.regra} ("${v.trecho}")`).join('; ')}. Reescreva a mensagem inteira respeitando o prompt, com NO MÁXIMO um ponto de interrogação e sem travessão. Responda só com o texto do WhatsApp.` },
+      { role: 'system', content: `[TRAVA DO SISTEMA] Sua resposta NÃO foi enviada porque violou: ${v1.map((v: Violation) => `${v.regra} ("${v.trecho}")`).join('; ')}. Reescreva a mensagem inteira respeitando o prompt, com NO MÁXIMO um ponto de interrogação e sem travessão. Mantenha o que estava certo (valores, total, nomes dos itens). Responda só com o texto do WhatsApp.` },
     ]
     const c = await call(fix, null, usage)
     const text2 = (c.message?.content || '').trim()
     const v2 = checkReply(text2)
     if (!v2.length) return { text: text2, guard: v1.map(v => `${v.regra}: ${v.trecho}`) }
+    if (v2.every(v => v.regra === 'mais de uma pergunta')) {
+      const cortado = keepLastQuestion(text2, lastLead)
+      if (cortado && cortado.length >= 20 && !checkReply(cortado).length) return { text: cortado, guard: [...v1.map(v => `${v.regra}: ${v.trecho}`), '2ª: uma pergunta: cortado em código'] }
+    }
     return {
       text: handoff ? CRM_MAP.textoSeguroFinal : CRM_MAP.textoSeguro,
       guard: [...v1.map(v => `${v.regra}: ${v.trecho}`), ...v2.map(v => `2ª: ${v.regra}: ${v.trecho}`), 'fallback'],
@@ -140,6 +148,9 @@ export function createBrain(opts: LlmOptions) {
     const toolsUsed: string[] = []
     let handoff = false
     let urgente = false
+    let cobrouUrgente = false
+    let cobrouData = false
+    let cobrouFechamento = false
     const tools = buildTools(ctx.porta)
     const messages: Msg[] = [...(await buildSystem(ctx, lead)), ...turns]
 
@@ -163,8 +174,28 @@ export function createBrain(opts: LlmOptions) {
         continue
       }
       const text = (choice.message?.content || '').trim()
+      // Evento hoje ou amanhã com itens, data e entrega já gravados: a regra manda passar já (uma cobrança)
+      if (!handoff && !cobrouUrgente && step < MAX_STEPS - 1 && pedidoUrgentePronto(await ctx.port.getState(), hojeNoFuso(ctx.timezone))) {
+        cobrouUrgente = true
+        messages.push({ role: 'system', content: '[SISTEMA] O evento é hoje ou amanhã e o pedido já tem itens, data e entrega ou retirada. Chame finalizar_atendimento(urgente) AGORA, com a evidência do lead, e depois escreva a mensagem de encerramento sem pergunta: diga que a Karol já vai ver se dá pra atender.' })
+        continue
+      }
+      // Roteiro completo e ninguém finalizou: uma cobrança (o card precisa ir para a Karol)
+      if (!handoff && !cobrouFechamento && step < MAX_STEPS - 1 && ctx.porta.roteiro.length && !agendaAtiva() && !snapshot(ctx.porta, await ctx.port.getState()).abertos.length) {
+        cobrouFechamento = true
+        messages.push({ role: 'system', content: '[SISTEMA] O roteiro está COMPLETO e o atendimento não foi finalizado. Chame finalizar_atendimento(qualificado) agora e depois mande o resumo do pedido para a pessoa conferir (itens, data, entrega ou retirada), sem pergunta.' })
+        continue
+      }
+      // A pessoa escreveu a data (dd/mm) e o modelo não gravou: uma cobrança antes de responder
+      const dataDita = /\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\b/.exec(ctx.lastLeadText)
+      if (!handoff && !cobrouData && dataDita && step < MAX_STEPS - 1 && ctx.porta.obrigatorios.includes('dataEvento') && !(await ctx.port.getState()).respostas?.dataEvento) {
+        cobrouData = true
+        messages.push({ role: 'system', content: `[SISTEMA] A pessoa já escreveu a data ("${dataDita[0]}") e ela não foi gravada. Grave dataEvento com salvar_respostas agora e NÃO pergunte a data.` })
+        continue
+      }
       if (!text) break
       const safe = await enforce(messages, text, usage, handoff, ctx.lastLeadText)
+      if (lead.primeiroContatoDaPorta) safe.text = comCumprimento(safe.text, horaNoFuso(ctx.timezone), ctx.lastLeadText)
       if (!handoff) {
         const alerta = CRM_MAP.alertas.find(a => a.finaliza && a.re.test(ctx.lastLeadText) && a.finaliza.seResposta.test(safe.text))
         if (alerta?.finaliza) {

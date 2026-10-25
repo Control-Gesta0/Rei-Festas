@@ -14,6 +14,8 @@ export const REGRAS_CLIENTE: Array<{ regra: string; re: RegExp }> = [
   // Percentual: só os 7% à vista e os 50% de sinal (D7, D8). Multa e taxa ficam com a Karol
   { regra: 'percentual fora da regra', re: /(?<![\d,.])(?!(?:7|50)\s?%)\d{1,3}(?:[.,]\d+)?\s?%/ },
   { regra: 'valor de multa', re: /\bmulta\s+(?:de\s+)?(?:R\$|\d)/i },
+  // Falou valor: a Karol confirma disponibilidade e valor final (regra de preço do prompt)
+  { regra: 'valor sem dizer que a Karol confirma', re: /^(?![\s\S]*\bkarol\b)[\s\S]*?R\$\s?\d[\d.,]*/i },
   // Tom humano: travessão denuncia texto de IA no WhatsApp
   { regra: 'travessão', re: /[—–]/ },
   // Resíduo de chatbot

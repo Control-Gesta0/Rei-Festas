@@ -85,3 +85,14 @@ export function keepLastQuestion(text: string, lastLead = ''): string | null {
 }
 
 export const DISSE_NAO_SEI = /n[aã]o sei|sei l[aá]|n[aã]o lembro|n[aã]o fa[cç]o ideia|n[aã]o tenho certeza/i
+
+/**
+ * Primeira mensagem sem o cumprimento da loja: põe "Olá, boa tarde! Tudo bem?" na frente.
+ * Usa o período que o lead usou ("boa tarde"); senão, a hora (0-23) no fuso.
+ */
+export function comCumprimento(text: string, hora: number, textoLead = ''): string {
+  if (/^\W*(ol[aá]|oi\b|bom dia|boa tarde|boa noite)/i.test(text)) return text
+  const doLead = /\b(bom dia|boa tarde|boa noite)\b/i.exec(textoLead)?.[1].toLowerCase()
+  const periodo = doLead || (hora < 12 ? 'bom dia' : hora < 18 ? 'boa tarde' : 'boa noite')
+  return `Olá, ${periodo}! Tudo bem? ${text}`
+}

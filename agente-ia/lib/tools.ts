@@ -1,8 +1,8 @@
 import type OpenAI from 'openai'
 import { CRM_MAP, campoByKey, type Campo, type Porta } from './crm-map'
 import { montarPedido, reais, textoItens } from './catalogo'
-import { conferirEvidenciaData, diasEntre, formatarData, hojeNoFuso, parseDataBR } from './datas'
-import { DISSE_NAO_SEI, evidenceFound, matchOption, overlap, parseNumeroBR } from './guards'
+import { conferirEvidenciaData, dataPelaEvidencia, diasEntre, formatarData, hojeNoFuso, parseDataBR } from './datas'
+import { DISSE_NAO_SEI, evidenceFound, matchOption, norm, overlap, parseNumeroBR } from './guards'
 import { classificar } from './router'
 import { espalhar, formatSlot, resolverEscolha } from './slots'
 import type { LeadState } from './state'
@@ -78,7 +78,7 @@ const sinalMotivo = (m: Motivo): RegExp | undefined => (CRM_MAP.finalizar.sinalM
 /** Campo condicional fora do caso (ex.: endereço do evento quando é retirada na loja) */
 const aplicavel = (campo: Campo, state: LeadState) => !campo.aplicavel || campo.aplicavel(state.respostas || {})
 
-const agendaAtiva = () => !!CRM_MAP.agenda.calendarId
+export const agendaAtiva = () => !!CRM_MAP.agenda.calendarId
 
 export function buildTools(porta: Porta): OpenAI.Chat.ChatCompletionTool[] {
   const tools: OpenAI.Chat.ChatCompletionTool[] = []
@@ -257,7 +257,7 @@ export function describeOpen(porta: Porta, s: Snapshot): string {
   if (!s.abertos.length) {
     return agendaAtiva()
       ? 'Roteiro COMPLETO. Se a pessoa tem o perfil: chame mover_etapa("Qualificado") e CONVIDE para a demonstração gratuita perguntando se prefere manhã ou tarde. NÃO finalize agora: finalizar vem só depois de agendar ou se a pessoa recusar a demonstração. Sem perfil: siga a parte "Sem perfil" do prompt.'
-      : 'Roteiro COMPLETO. Siga o fechamento previsto no prompt.'
+      : 'Roteiro COMPLETO. Chame finalizar_atendimento(qualificado) AGORA e depois mande o resumo do pedido para a pessoa conferir, como manda o fechamento do prompt.'
   }
   const prox = s.abertos[0]
   const opc = prox.options ? ` (grave com uma destas opções EXATAS: ${prox.options.join(' | ')})` : ''
@@ -385,8 +385,10 @@ export async function runTool(ctx: ToolCtx, name: string, input: Record<string, 
           // Texto guarda as PALAVRAS DO LEAD (a evidência literal), nunca o resumo do modelo
           // Campo nativo (nome, e-mail, endereço): vale o valor limpo, desde que esteja dentro da evidência
           const nativoLimpo = campo.id.startsWith(NATIVO) && !!valor.trim() && evidenceFound(valor, ev)
-          const bruto = (campo.type === 'text' || campo.type === 'textarea') && !nativoLimpo ? ev : valor
           const hoje = hojeNoFuso(ctx.timezone)
+          // "hoje", "amanhã", "sábado": a data sai do código, não da conta do modelo
+          const pelaEvidencia = campo.type === 'date' ? dataPelaEvidencia(ev, hoje) : null
+          const bruto = pelaEvidencia ?? ((campo.type === 'text' || campo.type === 'textarea') && !nativoLimpo ? ev : valor)
           const c = coerce(campo, bruto, campo.id ? lead.fields[campo.id] : undefined, hoje)
           if ('error' in c) { erros.push(c.error); continue }
           if (campo.type === 'date') {
@@ -483,9 +485,16 @@ export async function runTool(ctx: ToolCtx, name: string, input: Record<string, 
         } else if (motivo === 'agendado') {
           if (!state.agendado) return err('Nenhuma reunião foi marcada ainda. Use agendar_reuniao antes.')
         } else {
-          const ev = String(input.evidencia || '')
+          // Urgente sem evidência: a última mensagem do lead serve, se ela mostrar a urgência
+          const ev = String(input.evidencia || '') || (motivo === 'urgente' ? ctx.lastLeadText : '')
           const sinal = sinalMotivo(motivo)
-          if (!evidenceFound(ev, ctx.leadText) || (sinal && !sinal.test(ev))) {
+          // Urgente: a data já gravada (hoje ou amanhã) é prova suficiente
+          const dataGravada = /(\d{2})\/(\d{2})\/(\d{4})/.exec(String(state.respostas?.dataEvento || ''))
+          const dataUrgente = motivo === 'urgente' && !!dataGravada && diasEntre(hojeNoFuso(ctx.timezone), `${dataGravada[3]}-${dataGravada[2]}-${dataGravada[1]}`) <= 1
+          const veto = (CRM_MAP.finalizar as { vetoMotivo?: Record<string, { re: RegExp; salvo?: RegExp; msg: string }> }).vetoMotivo?.[motivo]
+          if (veto && veto.re.test(ev) && !veto.salvo?.test(ev)) return err(`NÃO finalizado: ${veto.msg}.`)
+          if (!dataUrgente && (!evidenceFound(ev, ctx.leadText) || (sinal && !sinal.test(ev)))) {
+            if (!ev.trim()) return err(`NÃO finalizado: falta a evidência. Chame de novo com "evidencia" = o trecho literal do lead que mostra "${motivo}".`)
             return err(`NÃO finalizado: a evidência "${ev}" não comprova "${motivo}" no que o lead escreveu. Continue o atendimento.`)
           }
         }
@@ -497,7 +506,14 @@ export async function runTool(ctx: ToolCtx, name: string, input: Record<string, 
       case 'calcular_tabela': {
         const cat = CRM_MAP.catalogo
         if (!cat) return err('Catálogo não configurado.')
-        const lista = Array.isArray(input.itens) ? input.itens as Array<Record<string, unknown>> : []
+        // Linha repetida com a mesma evidência é eco do modelo, não pedido em dobro ("50 pratos... e mais 30 pratos" tem evidências diferentes)
+        const vistos = new Set<string>()
+        const lista = (Array.isArray(input.itens) ? input.itens as Array<Record<string, unknown>> : []).filter(i => {
+          const chave = `${String(i.codigo || '').trim().toUpperCase()}|${Number(i.quantidade)}|${norm(String(i.evidencia || ''))}`
+          if (vistos.has(chave)) return false
+          vistos.add(chave)
+          return true
+        })
         const semEvidencia = lista.filter(i => !evidenceFound(String(i.evidencia || ''), ctx.leadText)).map(i => String(i.descricao || i.codigo))
         if (semEvidencia.length) return err(`Nada gravado: a pessoa não pediu ${semEvidencia.join(', ')} (a evidência não aparece no que ela escreveu). NÃO invente item; pergunte.`)
         const r = montarPedido(lista.map(i => ({ codigo: String(i.codigo || ''), descricao: String(i.descricao || ''), quantidade: Number(i.quantidade) })), cat.itens)

@@ -81,6 +81,40 @@ export function conferirEvidenciaData(evidencia: string, isoData: string, hoje: 
     return `a pessoa disse "amanhã", que é ${formatarData(amanha)}`
   }
   const dia = DIAS.findIndex(x => new RegExp(`\\b${x}\\b`).test(ev))
-  if (dia >= 0 && !/\d/.test(ev) && diaDaSemana(isoData) !== dia) return `${formatarData(isoData)} não cai num(a) ${DIAS[dia]}`
+  if (dia >= 0 && !/\d/.test(ev) && diaDaSemana(isoData) !== dia) return `${formatarData(isoData)} não cai num(a) ${DIAS[dia]}; o próximo é ${formatarData(proximoDiaDaSemana(hoje, dia))}`
   return null
+}
+
+/** Próxima data (depois de hoje) que cai no dia da semana informado (0 = domingo). */
+export function proximoDiaDaSemana(hoje: string, dia: number): string {
+  const delta = ((dia - diaDaSemana(hoje) + 7) % 7) || 7
+  return new Date(Date.parse(`${hoje}T12:00:00Z`) + delta * 86400000).toISOString().slice(0, 10)
+}
+
+/** "seg 26/10/2026 · ter 27/10/2026 · ..." dos próximos n dias, para o modelo não errar o dia da semana. */
+export function proximosDias(hoje: string, n = 8): string {
+  return Array.from({ length: n }, (_, i) => formatarData(new Date(Date.parse(`${hoje}T12:00:00Z`) + (i + 1) * 86400000).toISOString().slice(0, 10))).join(' · ')
+}
+
+/** Pedido para hoje ou amanhã que já tem itens, data e entrega ou retirada (regra de pedido urgente). */
+export function pedidoUrgentePronto(state: { respostas?: Record<string, string> }, hoje: string): boolean {
+  const r = state.respostas || {}
+  const d = /(\d{2})\/(\d{2})\/(\d{4})/.exec(r.dataEvento || '')
+  if (!d || !r.itens || !r.entregaRetirada) return false
+  const dias = diasEntre(hoje, `${d[3]}-${d[2]}-${d[1]}`)
+  return dias >= 0 && dias <= 1
+}
+
+/**
+ * "hoje", "amanhã" ou "sábado" (sem número) → a data certa, calculada aqui. O modelo erra essa conta;
+ * quando a evidência é só isso, vale a data do código. null se a evidência traz a data em número ou não fala de dia.
+ */
+export function dataPelaEvidencia(evidencia: string, hoje: string): string | null {
+  // Data escrita com número ("20/11", "dia 20", "20 de novembro") fica com o parse normal; hora ("às 18h") não conta
+  if (/\d{1,2}\s*[/.-]\s*\d{1,2}|\bdia\s+\d|\d{1,2}\s+de\s+[a-zç]{3,}/i.test(evidencia)) return null
+  const ev = norm(evidencia)
+  if (/\bhoje\b/.test(ev)) return hoje
+  if (/\bamanha\b/.test(ev)) return new Date(Date.parse(`${hoje}T12:00:00Z`) + 86400000).toISOString().slice(0, 10)
+  const dia = DIAS.findIndex(x => new RegExp(`\\b${x}\\b`).test(ev))
+  return dia >= 0 ? proximoDiaDaSemana(hoje, dia) : null
 }

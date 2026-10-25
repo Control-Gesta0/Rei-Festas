@@ -1,4 +1,5 @@
 import type { ItemCatalogo } from './crm-map-types'
+import { norm } from './guards'
 
 /**
  * Soma do pedido pela tabela, em CÓDIGO. O modelo escolhe os códigos e as
@@ -37,6 +38,9 @@ export function montarPedido(pedido: LinhaPedido[], catalogo: ItemCatalogo[]): {
     if (!Number.isInteger(q) || q <= 0 || q > 10000) { erros.push(`quantidade inválida para "${nome}": ${l.quantidade}`); continue }
     if (codigo && !porCodigo.has(codigo)) { erros.push(`o código ${codigo} não existe no catálogo. Procure o item certo no catálogo ou mande codigo vazio se não tiver`); continue }
     if (!codigo && !nome) { erros.push('item sem código e sem descrição'); continue }
+    if (!codigo && /^(?:dia\s+)?\d{1,2}\/\d{1,2}(?:\/\d{2,4})?$/i.test(nome)) { erros.push(`"${nome}" é uma data, não um item. Data se grava com salvar_respostas(dataEvento)`); continue }
+    const item = codigo ? porCodigo.get(codigo)! : null
+    if (item && l.descricao.trim() && outroTipo(l.descricao, item.nome, catalogo)) { erros.push(`o código ${codigo} é "${item.nome}", não "${l.descricao.trim()}". Confira o código no catálogo`); continue }
     const chave = codigo || `fora:${nome.toLowerCase()}`
     const ja = somados.get(chave)
     somados.set(chave, ja ? { ...ja, quantidade: ja.quantidade + q } : { codigo, descricao: nome, quantidade: q })
@@ -65,4 +69,15 @@ export function textoItens(p: Pedido): string {
     const preco = l.item.preco != null ? ` · ${reais(l.item.preco)} cada = ${reais(l.subtotal!)}` : ' · valor com a equipe'
     return `${l.item.codigo} · ${l.quantidade} × ${l.item.nome}${preco}`
   }).join('\n')
+}
+
+/**
+ * A descrição que o modelo mandou fala de OUTRO tipo de item do catálogo? ("Garfo ..." com o código da faca)
+ * A primeira palavra da descrição (o tipo) tem que estar no nome do item; descrição que não começa por um tipo conhecido passa.
+ */
+const tipo = (t: string) => norm(t).split(' ').find(w => w.length >= 3 && !/^\d/.test(w))?.slice(0, 4) || ''
+function outroTipo(descricao: string, nomeCatalogo: string, catalogo: ItemCatalogo[]): boolean {
+  const d = tipo(descricao)
+  const palavrasDoNome = norm(nomeCatalogo).split(' ').map(w => w.slice(0, 4))
+  return !!d && !palavrasDoNome.includes(d) && catalogo.some(i => tipo(i.nome) === d)
 }

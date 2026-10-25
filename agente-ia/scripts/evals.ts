@@ -28,7 +28,7 @@ async function main() {
   for (const x of r.resultados) {
     console.log(`\n${x.passou ? '✅' : '❌'} ${x.id} [${x.rodada}] nota ${x.nota}/10`)
     if (!x.passou) {
-      for (const t of x.conversa) console.log(`   LEAD: ${t.lead}\n   IA: ${t.resposta}`)
+      for (const t of x.conversa) console.log(`   LEAD: ${t.lead}\n   IA: ${t.resposta}${t.guard.length ? `\n   🛡 travas: ${t.guard.join(' | ')}` : ''}`)
       for (const f of x.falhasCodigo) console.log(`   ⛔ código: ${f}`)
       for (const f of x.falhasJuiz) console.log(`   ⛔ juiz: ${f.criterio} — ${f.porque}`)
       for (const l of x.log) console.log(`   · ${l}`)
