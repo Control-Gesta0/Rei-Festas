@@ -246,3 +246,18 @@ O vínculo categoria → linha do DRE no VHSYS não fica na categoria: fica num
 - **Decisão (24/10/2026, mestre): pedidos não serão migrados.** O escopo da migração do
   Acercom é só cadastro: **clientes, fornecedores e produtos**. Os pedidos em aberto
   terminam no Acercom.
+
+### Situação em 25/10/2026
+
+- **Aguardando a exportação da Acercom** (clientes, fornecedores e produtos em Excel/CSV),
+  pedida pela Rey Festas. Os arquivos vão para `dados/` (fora do git).
+- Nenhuma listagem imprimível de cadastro foi encontrada no LocPlus. "Clientes por
+  Tabela" é só um resumo por tabela de preço (18.949 pedidos no histórico).
+- **Cicatriz:** não automatizar cliques no LocPlus. Com o atraso da sessão remota, um
+  clique de menu caiu dentro da tela de Produtos e abriu um registro novo vazio (o
+  sistema recusou por falta de nome; a Rey Festas cancelou a linha). Antes, o Detalhe da
+  Devolução se mostrou um formulário de baixa. Leitura só por relatório ou exportação.
+- Quando os arquivos chegarem: importar clientes e fornecedores no VHSYS pela API
+  (`/clientes`, com `tipo_cadastro`), conferindo CPF/CNPJ antes de criar; casar
+  produtos pelo código antigo (está na observação dos 209 produtos) e completar o
+  preço de reposição.
