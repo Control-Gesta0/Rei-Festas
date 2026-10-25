@@ -87,3 +87,28 @@ export function calcularAgenda(
   }
   return linhas.sort((a, b) => a.codigo.localeCompare(b.codigo))
 }
+
+/** Situação do pedido no VHSYS que encerra a locação (material de volta). Conferir os nomes com ?bruto=1. */
+export const pedidoCancelado = (situacao: string) => /cancel/i.test(situacao)
+export const pedidoConcluido = (situacao: string) => /atendid|conclu|finaliz|devolvid/i.test(situacao)
+
+/**
+ * Modelo A (D20): o estoque do VHSYS é o patrimônio; quem ocupa é a reserva.
+ * - cancelado ou concluído (atendido): não ocupa nada, nem que o período não tenha acabado
+ *   (material devolvido antes da hora libera na hora);
+ * - período vencido e não concluído: DEVOLUÇÃO PENDENTE. O material continua fora, então
+ *   ocupa até hoje e aparece na lista para a equipe cobrar ou dar baixa;
+ * - senão: ocupa o período da linha LOCAÇÃO.
+ */
+export function classificarReserva(
+  periodo: { inicio: string; fim: string },
+  situacao: string,
+  hoje: string,
+): { tipo: 'ignorar' } | { tipo: 'ativa' | 'atrasada'; inicio: string; fim: string; diasAtraso: number } {
+  if (pedidoCancelado(situacao) || pedidoConcluido(situacao)) return { tipo: 'ignorar' }
+  if (periodo.fim < hoje) {
+    const diasAtraso = Math.round((Date.parse(`${hoje}T12:00:00Z`) - Date.parse(`${periodo.fim}T12:00:00Z`)) / umDia)
+    return { tipo: 'atrasada', inicio: periodo.inicio, fim: hoje, diasAtraso }
+  }
+  return { tipo: 'ativa', ...periodo, diasAtraso: 0 }
+}

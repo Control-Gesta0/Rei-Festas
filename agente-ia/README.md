@@ -49,7 +49,11 @@ orçamento (um clique). O orçamento já sai com a linha `LOCAÇÃO: dd/mm/aaaa 
 (período padrão pelas regras da loja; a Karol ajusta). A agenda de reservas lê os pedidos:
 
 `GET /api/agenda?secret=…&data=20/11/2026` (ou `&de=…&ate=…`) → por item: total, reservado (pico no
-intervalo), livre e os pedidos que ocupam. `&bruto=1` mostra os campos como o VHSYS devolve.
+intervalo), livre e os pedidos que ocupam; mais `devolucoesPendentes` (período vencido sem "atendido") e
+`hoje` (pedidos que saem e voltam hoje). `&bruto=1` mostra os campos como o VHSYS devolve.
+
+Modelo A: o estoque do VHSYS é o patrimônio. No pedido de locação: **Lançar contas** sim, **Lançar
+estoque** nunca, **Alterar status → atendido** na devolução; perda vira ajuste de estoque.
 
 `ERP_MODO=gravar` grava no VHSYS; sem isso é **ensaio** (lê e mostra o plano). Conferência manual,
 sempre em ensaio: `GET /api/erp?secret=…&contact_id=…`.

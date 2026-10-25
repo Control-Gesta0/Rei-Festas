@@ -161,6 +161,12 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   eq('agenda: dia sem sobreposição', ag('2026-11-03')['LOU-001'], '40/60')
   eq('agenda: dia antes de tudo não reserva', ag('2026-10-29')['LOU-001'], '0/100')
   eq('agenda: estoque desconhecido = livre null', ag('2026-10-31')['COP-006'], '80/null')
+  const cls = (fim: string, sit: string) => { const c = loc.classificarReserva({ inicio: '2026-10-01', fim }, sit, '2026-10-25'); return c.tipo === 'ignorar' ? 'ignorar' : `${c.tipo}:${c.fim}:${c.diasAtraso}` }
+  eq('modelo A: pedido em aberto no período ocupa', cls('2026-10-30', 'Em aberto'), 'ativa:2026-10-30:0')
+  eq('modelo A: atendido antes da hora libera', cls('2026-10-30', 'Atendido'), 'ignorar')
+  eq('modelo A: cancelado não ocupa', cls('2026-10-30', 'Cancelado'), 'ignorar')
+  eq('modelo A: vencido sem atendido = atrasada, ocupa até hoje', cls('2026-10-20', 'Em aberto'), 'atrasada:2026-10-25:5')
+  eq('modelo A: vencido e atendido some', cls('2026-10-20', 'Atendido'), 'ignorar')
   const obsLoc = erp.obsOrcamento({ ...dadosErp, dataEvento: '2026-10-31' }, [])
   eq('orçamento: observação leva a linha LOCAÇÃO pelo período padrão', loc.lerPeriodo(obsLoc), { inicio: '2026-10-30', fim: '2026-11-02' })
 
