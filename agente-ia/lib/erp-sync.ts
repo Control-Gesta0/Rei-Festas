@@ -7,7 +7,10 @@ import {
   listCustomFields, removeContactTags, updateContactFields, updateOpportunity,
 } from './ghl'
 import { k, redis } from './redis'
-import { adicionarProdutoOrcamento, buscarClientePorDocumento, buscarProdutoPorCodigo, criarCliente, criarOrcamento } from './vhsys'
+import {
+  adicionarProdutoOrcamento, buscarClientePorDocumento, buscarProdutoPorCodigo, criarCliente, criarOrcamento,
+  orcamentosDoCliente, produtosDoOrcamento, type VhsysOrcamento,
+} from './vhsys'
 
 /** Campos do GHL que guardam o vínculo com o VHSYS (casados pelo NOME; criados por scripts/ghl_estrutura.py). */
 const CAMPO_ORCAMENTO = 'Nº do pedido no ERP'
@@ -117,20 +120,37 @@ export async function sincronizarPedido(contactId: string, opportunityId: string
       nome_cliente: d.nome,
       data_pedido: hojeIso(),
       valor_total_produtos: totalItens(usados).toFixed(2),
+      valor_total_orcamento: totalItens(usados).toFixed(2),
       obs_pedido: obsOrcamento(d, [...semCodigo, ...faltando]),
       obs_interno_pedido: `Origem: CRM (GHL), oportunidade ${opp.id}`,
     }
     r.orcamento = { payload: orcPayload, produtos }
 
-    if (!gravar) { r.ok = true; return r }
+    if (!gravar) {
+      if (r.cliente.id) {
+        try {
+          const lista = await orcamentosDoCliente(r.cliente.id)
+          const desta = lista.find(o => o.obsInterna.includes(opp.id))
+          r.avisos.push(desta
+            ? `já existe o orçamento nº ${desta.numero} desta oportunidade: a gravação vai completá-lo, não criar outro`
+            : `o cliente tem ${lista.length} orçamento(s) no VHSYS, nenhum marcado com esta oportunidade: a gravação cria um novo`)
+        } catch (e) {
+          r.avisos.push(`não consegui listar os orçamentos do cliente: ${e instanceof Error ? e.message : String(e)}`)
+        }
+      }
+      r.ok = true
+      return r
+    }
 
     // ---------- Gravação ----------
     if (!r.cliente.id) r.cliente.id = String((await criarCliente(r.cliente.payload!)).id_cliente)
     orcPayload.id_cliente = r.cliente.id
-    const orc = await criarOrcamento(orcPayload)
+    const orc = await garantirOrcamento(r.cliente.id, opp.id, orcPayload)
     r.orcamento.id = orc.id
     r.orcamento.numero = orc.numero
-    for (const p of produtos) await adicionarProdutoOrcamento(orc.id, p)
+    // Retentativa completa o que faltou: produto que já está no orçamento não entra de novo
+    const jaNoOrcamento = new Set(await produtosDoOrcamento(orc.id))
+    for (const p of produtos) if (!jaNoOrcamento.has(String(p.id_produto))) await adicionarProdutoOrcamento(orc.id, p)
 
     if (campoOrc) await updateOpportunity(opp.id, { customFields: [{ id: campoOrc, value: orc.numero }], status: 'won' })
     else await updateOpportunity(opp.id, { status: 'won' })
@@ -155,6 +175,30 @@ export async function sincronizarPedido(contactId: string, opportunityId: string
   } finally {
     if (travou) await redis.del(lockKey)
   }
+}
+
+/**
+ * O orçamento desta oportunidade, criando só se ainda não existir. Três chaves contra duplicar:
+ * o id guardado no Redis, a marca da oportunidade na observação interna e, se o VHSYS responder
+ * erro ao criar (ele cria mesmo assim; visto em 25/10/2026), o orçamento que surgiu na lista do cliente.
+ */
+async function garantirOrcamento(idCliente: string, oppId: string, payload: Record<string, unknown>): Promise<VhsysOrcamento> {
+  const chave = k('erp-orc', oppId)
+  const antes = await orcamentosDoCliente(idCliente)
+  const salvo = await redis.get<string>(chave)
+  const conhecido = antes.find(o => o.id === String(salvo ?? '')) || antes.find(o => o.obsInterna.includes(oppId))
+  if (conhecido) return conhecido
+  let orc: VhsysOrcamento
+  try {
+    orc = await criarOrcamento(payload)
+  } catch (e) {
+    const idsAntes = new Set(antes.map(o => o.id))
+    const novos = (await orcamentosDoCliente(idCliente)).filter(o => !idsAntes.has(o.id))
+    if (novos.length !== 1) throw e
+    orc = novos[0]
+  }
+  await redis.set(chave, orc.id, { ex: 180 * 86400 })
+  return orc
 }
 
 function payloadProduto(idProduto: string, it: ItemPedido): Record<string, unknown> {
