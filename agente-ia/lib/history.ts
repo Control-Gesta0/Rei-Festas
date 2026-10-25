@@ -82,7 +82,7 @@ export async function toChatMsgs(raw: GhlMessage[], opts: { corteMs?: number; pr
   return out
 }
 
-export interface Conversa { conversationId: string | null; raw: GhlMessage[]; msgs: ChatMsg[]; instancia: string | null }
+export interface Conversa { conversationId: string | null; raw: GhlMessage[]; msgs: ChatMsg[]; instancia: string | null; corteMs: number }
 
 /** Instância (número) em que o lead escreveu por último: a IA responde por ela. */
 export function ultimaInstancia(raw: GhlMessage[]): string | null {
@@ -97,14 +97,14 @@ export function ultimaInstancia(raw: GhlMessage[]): string | null {
 /** Lê a conversa do GHL esperando a hidratação do anexo (backoff 12×2s ≈ 24s). */
 export async function getHydratedHistory(contactId: string): Promise<Conversa> {
   const conversationId = await findConversationId(contactId)
-  if (!conversationId) return { conversationId: null, raw: [], msgs: [], instancia: null }
+  if (!conversationId) return { conversationId: null, raw: [], msgs: [], instancia: null, corteMs: 0 }
   let raw = await getConversationMessages(conversationId)
   for (let i = 0; i < 12 && lastInboundPending(raw); i++) {
     await sleep(2000)
     raw = await getConversationMessages(conversationId)
   }
   const corteMs = Number(await redis.get<string>(k('corte', contactId))) || 0
-  return { conversationId, raw, msgs: await toChatMsgs(raw, { corteMs }), instancia: ultimaInstancia(raw) }
+  return { conversationId, raw, msgs: await toChatMsgs(raw, { corteMs }), instancia: ultimaInstancia(raw), corteMs }
 }
 
 export function lastInbound(msgs: ChatMsg[]): ChatMsg | null {
@@ -132,13 +132,15 @@ const HUMANO_JANELA_MS = 6 * 3600 * 1000
  * Um humano do time respondeu pelo GHL nas últimas 6h? A IA recua.
  * Humano = outbound com userId que NÃO foi enviado pela IA.
  * (Mensagem de workflow/automação não tem userId e não conta como humano.)
+ * Antes do corte (reset de teste) não conta: o teste recomeça do zero.
  */
-export async function humanSpokeRecently(raw: GhlMessage[], now = Date.now()): Promise<boolean> {
+export async function humanSpokeRecently(raw: GhlMessage[], now = Date.now(), corteMs = 0): Promise<boolean> {
   const recentes = raw.filter(m =>
     isChatMessage(m) && m.direction === 'outbound' && m.userId &&
     // comando/sistema da integração e mensagem de bot (#switch) não são humano falando
     !ehComandoOuSistema(m.body || '') && !/^\s*#switch:/i.test(m.body || '') &&
-    now - (Date.parse(m.dateAdded || '') || 0) < HUMANO_JANELA_MS)
+    now - (Date.parse(m.dateAdded || '') || 0) < HUMANO_JANELA_MS &&
+    (Date.parse(m.dateAdded || '') || 0) >= corteMs)
   for (const m of recentes) {
     if (!(await redis.get(k('enviada', m.id)))) return true
   }
