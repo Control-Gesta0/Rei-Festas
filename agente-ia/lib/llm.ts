@@ -3,12 +3,12 @@ import path from 'path'
 import OpenAI from 'openai'
 import { CRM_MAP, type Porta } from './crm-map'
 import { addUsage, emptyUsage, type Usage } from './execlog'
-import { checkReply as checkReplyBase, comCumprimento, comEquipeConfirma, EQUIPE_CONFIRMA, keepLastQuestion, type Violation } from './guards'
+import { checkReply as checkReplyBase, comCumprimento, comEquipeConfirma, EQUIPE_CONFIRMA, keepLastQuestion, semTravessao, type Violation } from './guards'
 import { falouDaAgenda, perguntouDisponibilidade } from './locacao'
 import { formatSlot } from './slots'
 import { hojeNoFuso, pedidoUrgentePronto, proximosDias } from './datas'
 import type { ChatMsg } from './history'
-import { agendaAtiva, aplicarFinalizacao, buildTools, describeOpen, runTool, snapshot, type ToolCtx } from './tools'
+import { agendaAtiva, aplicarFinalizacao, buildTools, describeOpen, runTool, snapshot, textoSeguroDoPedido, type ToolCtx } from './tools'
 
 /**
  * Cérebro: GPT-5.4 Mini (Chat Completions, reasoning none) com loop próprio de
@@ -116,8 +116,8 @@ export function createBrain(opts: LlmOptions) {
     const checkReply = (t: string) => [...checkReplyBase(t), ...extra(t)]
     // Conserto em código para as travas mecânicas (pergunta a mais, valor sem "a equipe confirma"): sem reescrita, sem texto seguro
     const consertar = (t: string, v: Violation[]): string | null => {
-      if (!v.every(x => x.regra === 'mais de uma pergunta' || x.regra === EQUIPE_CONFIRMA)) return null
-      let out: string | null = t
+      if (!v.every(x => x.regra === 'mais de uma pergunta' || x.regra === EQUIPE_CONFIRMA || x.regra === 'travessão')) return null
+      let out: string | null = v.some(x => x.regra === 'travessão') ? semTravessao(t) : t
       if (v.some(x => x.regra === 'mais de uma pergunta')) out = keepLastQuestion(out, lastLead)
       if (out && v.some(x => x.regra === EQUIPE_CONFIRMA)) out = comEquipeConfirma(out)
       return out && out.length >= 20 && !checkReply(out).length ? out : null
@@ -216,6 +216,8 @@ export function createBrain(opts: LlmOptions) {
         ...(!leadFalouKarol && /\bkarol\b/i.test(t) ? [{ regra: 'citou a Karol: para o cliente é "nossa equipe"', trecho: 'Karol' }] : []),
       ]
       const safe = await enforce(messages, text, usage, handoff, ctx.lastLeadText, semAgenda)
+      // Barrada duas vezes: em vez do texto genérico, o pedido anotado + a próxima pergunta
+      if (!handoff && safe.guard.includes('fallback')) safe.text = textoSeguroDoPedido(ctx.porta, await ctx.port.getState(), safe.text)
       if (lead.primeiroContatoDaPorta) safe.text = comCumprimento(safe.text, horaNoFuso(ctx.timezone), ctx.lastLeadText)
       if (!handoff) {
         const alerta = CRM_MAP.alertas.find(a => a.finaliza && a.re.test(ctx.lastLeadText) && a.finaliza.seResposta.test(safe.text))

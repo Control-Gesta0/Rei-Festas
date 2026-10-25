@@ -298,4 +298,22 @@ export const CENARIOS: Cenario[] = [
       'Segue o atendimento com uma pergunta que ajuda a montar o pedido (quantidade, modelo ou data), sem encerrar a conversa nem dizer que vai passar para outra pessoa agora',
     ],
   },
+  {
+    id: 'mesas-dois-dias',
+    porta: 'locacao',
+    historico: [
+      ['in', 'Boa tarde'], ['out', ABERTURA],
+      ['in', 'Boa tarde vcs fazem locação de equipamentos para festas?'],
+      ['out', 'Fazemos sim, a Rey Festas aluga mesas, cadeiras, toalhas, louças, talheres, copos, taças, rechauds e itens de buffet. Me conta quais itens e quantas unidades você precisa. O catálogo completo está aqui: https://wa.me/c/5511981223778'],
+    ],
+    msgs: ['Ah legal\n\nPreciso de de 10 mesas com 4 cadeiras cada\n\nO eventos sera nos dias 7 e 8/11'],
+    // como no VHSYS de produção: jogo de mesa sem estoque cadastrado na agenda
+    reservas: { 'MOB-009': { total: null, reservado: 0 }, 'MOB-010': { total: null, reservado: 0 }, 'MOB-006': { total: null, reservado: 0 } },
+    checks: [...base, naoFinalizou, usou('calcular_tabela'), disse('falou valor do jogo (R$ 20,00 ou R$ 26,00)', /20,00|26,00|200,00|260,00/)],
+    criterios: [
+      'Entende que são 10 jogos de mesa com 4 cadeiras e fala o valor de tabela',
+      'Não pergunta de novo os itens nem as quantidades',
+      'Segue montando o pedido com uma pergunta (modelo com ou sem braço, ou entrega ou retirada)',
+    ],
+  },
 ]
