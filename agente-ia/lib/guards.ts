@@ -124,3 +124,7 @@ export function comEquipeConfirma(text: string): string {
 export function semTravessao(text: string): string {
   return text.replace(/(\d)\s*[—–]\s*(\d)/g, '$1 a $2').replace(/\s*[—–]\s*/g, ', ').replace(/,\s*([.!?])/g, '$1')
 }
+
+/** Só agradecimento ou "ok" (nada que peça resposta de verdade). */
+export const SO_AGRADECIMENTO = /^[\s!.,]*(?:(?:muito\s+)?obrigad[oa]s?|obg|brigad[oa]|valeu|vlw|ok(?:ay|ei)?|beleza|blz|show|top|certo|combinado|t[aá]\s*bom|perfeito|[oó]timo|maravilha|tmj|👍|🙏|😉|😊|❤️?|♥️?)(?:[\s!.,]*(?:(?:muito\s+)?obrigad[oa]s?|obg|valeu|ok|e|pela ajuda|pelo atendimento|👍|🙏|😉|😊|❤️?|♥️?))*[\s!.,]*$/i
+

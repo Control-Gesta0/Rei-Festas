@@ -11,9 +11,10 @@ Motor: template de agente da Control Gestão (GHL + OpenAI + Upstash, sem n8n).
 
 ```
 Cliente manda mensagem no WhatsApp (instância "Atendimento")
-  → Workflow do GHL "Customer Replied" (só contatos com a tag ia-ativa)
+  → Workflow do GHL "Customer Replied" (dois gatilhos: tag ia-ativa OU tag ia-finalizado)
   → POST /api/inbound  (responde 200 na hora; o resto roda em segundo plano)
       1. tag atendimento-humano ou sem a tag de gate? não responde
+         (exceção: "obrigado" até 6h depois do handoff, sem humano na conversa → "Disponha! 😉", uma vez)
       2. espera 10s (rajada de mensagens vira UMA resposta)
       3. lê a conversa no GHL (áudio e foto viram texto)
       4. alguém da equipe respondeu nas últimas 6h? a IA não entra
