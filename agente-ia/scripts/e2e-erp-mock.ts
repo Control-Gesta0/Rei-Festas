@@ -30,6 +30,10 @@ const CAMPO_CLI = 'fCli'
 let contato: any
 let oportunidade: any
 let vhsysClientes: any[] = []
+let vhsysOrcamentos: any[] = []
+let orcProdutos: Record<string, any[]> = {}
+/** 'erro': o VHSYS cria o orçamento e mesmo assim responde status error (visto no teste real) */
+let criarResponde: 'ok' | 'erro' = 'ok'
 const posts: Array<{ url: string; body: any }> = []
 const notas: string[] = []
 let tags: string[] = []
@@ -48,7 +52,7 @@ function reset(cpf: string | null) {
       { id: 'do2qOzlfkZZfvZauMNBv', fieldValueString: 'Retirada na loja' },
     ],
   }
-  posts.length = 0; notas.length = 0; tags = []; vhsysClientes = []
+  posts.length = 0; notas.length = 0; tags = []; vhsysClientes = []; vhsysOrcamentos = []; orcProdutos = {}; criarResponde = 'ok'; db.clear()
 }
 
 globalThis.fetch = (async (input: any, init: any = {}) => {
@@ -90,8 +94,21 @@ globalThis.fetch = (async (input: any, init: any = {}) => {
       const cod = decodeURIComponent(url.split('cod_produto=')[1])
       return ok({ status: 'success', data: [{ id_produto: cod === 'LOU-001' ? 11 : 22, cod_produto: cod }] })
     }
-    if (url.endsWith('/orcamentos') && method === 'POST') return ok({ status: 'success', data: { id_orcamento: 900, id_pedido: 123 } })
-    if (/\/orcamentos\/900\/produtos$/.test(url)) return ok({ status: 'success', data: body })
+    const nenhum = (o: string) => new Response(`{"status":"error","data":"Nenhum ${o} encontrado"}`, { status: 403 })
+    if (url.endsWith('/orcamentos') && method === 'POST') {
+      const n = vhsysOrcamentos.length
+      const o = { id_orcamento: 900 + n, id_pedido: 123 + n, id_cliente: body.id_cliente, obs_interno_pedido: body.obs_interno_pedido }
+      vhsysOrcamentos.push(o)
+      return criarResponde === 'ok' ? ok({ status: 'success', data: o }) : ok({ code: '404', status: 'error', data: 'Erro ao comunicar com a API' })
+    }
+    if (url.includes('/orcamentos?id_cliente=')) {
+      const id = decodeURIComponent(url.split('id_cliente=')[1].split('&')[0])
+      const l = vhsysOrcamentos.filter(o => String(o.id_cliente) === id)
+      return l.length ? ok({ status: 'success', data: l }) : nenhum('orçamento')
+    }
+    const mp = url.match(/\/orcamentos\/(\d+)\/produtos$/)
+    if (mp && method === 'GET') return orcProdutos[mp[1]]?.length ? ok({ status: 'success', data: orcProdutos[mp[1]] }) : nenhum('produto')
+    if (mp && method === 'POST') { (orcProdutos[mp[1]] ||= []).push(body); return ok({ status: 'success', data: body }) }
     throw new Error('VHSYS mock sem rota: ' + method + ' ' + url)
   }
   throw new Error('rede no teste: ' + url)
@@ -141,7 +158,25 @@ async function main() {
   eq('cliente existente: reaproveita o id', [ex.cliente?.novo, ex.cliente?.id], [false, '77'])
   eq('cliente existente: não chama POST /clientes', vhsysPosts().some(p => p.url.endsWith('/clientes')), false)
 
-  // 5. Sem CPF: não envia, marca erro para a Karol ver
+  // 5. VHSYS cria o orçamento mas responde erro (teste real de 25/10): a sincronização acha e completa
+  reset('123.456.789-09')
+  criarResponde = 'erro'
+  const ce = await sincronizarPedido('C1', 'O1', true)
+  eq('erro ao criar: recupera o orçamento criado e conclui', [ce.ok, ce.erro, ce.orcamento?.numero], [true, undefined, '123'])
+  eq('erro ao criar: um orçamento só, com os 2 produtos', [vhsysOrcamentos.length, (orcProdutos['900'] || []).length], [1, 2])
+
+  // 6. Retentar depois de falha parcial (sem o nº no card): completa, não duplica
+  reset('123.456.789-09')
+  vhsysClientes = [{ id_cliente: 77, cnpj_cliente: '123.456.789-09', razao_cliente: 'Maria Souza' }]
+  vhsysOrcamentos = [{ id_orcamento: 900, id_pedido: 2, id_cliente: 77, obs_interno_pedido: 'Origem: CRM (GHL), oportunidade O1' }]
+  orcProdutos = { '900': [{ id_produto: 11 }] }
+  const ens = await sincronizarPedido('C1', 'O1', false)
+  eq('ensaio avisa que vai completar o orçamento existente', ens.avisos.some(a => /orçamento nº 2 desta oportunidade/.test(a)), true)
+  const rt = await sincronizarPedido('C1', 'O1', true)
+  eq('retentar: usa o orçamento nº 2', [rt.ok, rt.orcamento?.numero], [true, '2'])
+  eq('retentar: nenhum orçamento novo e só o produto que faltava', [vhsysOrcamentos.length, orcProdutos['900'].map((p: any) => String(p.id_produto))], [1, ['11', '22']])
+
+  // 7. Sem CPF: não envia, marca erro para a Karol ver
   reset(null)
   const s = await sincronizarPedido('C1', 'O1', true)
   eq('sem CPF: falha explicada', [s.ok, /CPF\/CNPJ/.test(s.erro || '')], [false, true])

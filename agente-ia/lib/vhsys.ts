@@ -64,12 +64,45 @@ export async function buscarProdutoPorCodigo(codigo: string): Promise<VhsysProdu
   return achados.find(p => String(p.cod_produto || '').toUpperCase() === codigo.toUpperCase()) || null
 }
 
-export async function criarOrcamento(payload: Record<string, unknown>): Promise<{ id: string; numero: string }> {
+export interface VhsysOrcamento { id: string; numero: string; idCliente: string; obsInterna: string }
+
+/** id interno (vai na URL) e número que a Karol vê na tela ("Número orçamento") */
+function orcamentoDe(r: Record<string, unknown>): VhsysOrcamento | null {
+  const id = String(r.id_orcamento ?? r.id ?? '')
+  if (!id) return null
+  return {
+    id,
+    numero: String(r.id_pedido ?? r.numero_orcamento ?? r.num_orcamento ?? id),
+    idCliente: String(r.id_cliente ?? ''),
+    obsInterna: String(r.obs_interno_pedido ?? r.obs_interna_pedido ?? ''),
+  }
+}
+
+/**
+ * ATENÇÃO (teste real de 25/10/2026): o POST /orcamentos criou o orçamento e
+ * mesmo assim respondeu {"status":"error","data":"Erro ao comunicar com a API"}.
+ * Por isso quem chama confirma pela listagem (orcamentosDoCliente) antes de
+ * concluir que falhou.
+ */
+export async function criarOrcamento(payload: Record<string, unknown>): Promise<VhsysOrcamento> {
   type Resp = Record<string, unknown>
-  const r: Resp = lista<Resp>(await vh<Resp>('POST', '/orcamentos', payload))[0] ?? {}
-  const id = String(r.id_orcamento ?? r.id_pedido ?? r.id ?? '')
-  if (!id) throw new Error(`VHSYS não devolveu o id do orçamento: ${JSON.stringify(r).slice(0, 200)}`)
-  return { id, numero: String(r.id_pedido ?? r.numero_orcamento ?? id) }
+  const r = orcamentoDe(lista<Resp>(await vh<Resp>('POST', '/orcamentos', payload))[0] ?? {})
+  if (!r) throw new Error('VHSYS não devolveu o id do orçamento')
+  return r
+}
+
+/** Orçamentos do cliente (os mais recentes). Filtra de novo aqui: o VHSYS pode ignorar o filtro. */
+export async function orcamentosDoCliente(idCliente: string): Promise<VhsysOrcamento[]> {
+  type Resp = Record<string, unknown>
+  const achados = lista<Resp>(await vh<Resp[]>('GET', `/orcamentos?id_cliente=${encodeURIComponent(idCliente)}&limit=250`))
+  return achados.map(orcamentoDe).filter((o): o is VhsysOrcamento => !!o && (!o.idCliente || o.idCliente === idCliente))
+}
+
+/** id_produto dos itens que já estão no orçamento (para retentar sem duplicar). */
+export async function produtosDoOrcamento(idOrcamento: string): Promise<string[]> {
+  type Resp = Record<string, unknown>
+  const achados = lista<Resp>(await vh<Resp[]>('GET', `/orcamentos/${encodeURIComponent(idOrcamento)}/produtos`))
+  return achados.map(p => String(p.id_produto ?? '')).filter(Boolean)
 }
 
 export async function adicionarProdutoOrcamento(idOrcamento: string, payload: Record<string, unknown>): Promise<void> {
