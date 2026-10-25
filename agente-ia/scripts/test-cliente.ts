@@ -6,7 +6,7 @@
 type Eq = (nome: string, got: unknown, want: unknown) => void
 
 export default async function testesCliente(eq: Eq): Promise<number> {
-  const { checkReply, comCumprimento, comEquipeConfirma, semTravessao } = await import('../lib/guards')
+  const { checkReply, comCumprimento, comEquipeConfirma, semTravessao, SO_AGRADECIMENTO } = await import('../lib/guards')
   const regras = (t: string) => [...new Set(checkReply(t).map(v => v.regra))]
 
   // ---------- Travas de texto ----------
@@ -36,6 +36,8 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   eq('rey: "perfeito" no meio passa', regras('Fica perfeito pra mesa de doces 😉'), [])
   eq('rey: fala real da loja passa', regras('Olá, bom dia! Tudo bem? Essa é a nossa bege adamascada 😉'), [])
 
+  eq('disponha: agradecimentos valem', ['Obrigado', 'obrigada!!', 'Ok, obrigado', 'valeu 👍', 'Muito obrigado pela ajuda', 'Beleza', 'tá bom, obrigada'].map(t => SO_AGRADECIMENTO.test(t)), [true, true, true, true, true, true, true])
+  eq('disponha: pergunta ou pedido não vale', ['Obrigado, e o frete?', 'ok mas quero mudar a data', 'Quanto fica?', 'obrigado, vou querer mais 10 cadeiras'].map(t => SO_AGRADECIMENTO.test(t)), [false, false, false, false])
   eq('travessão entre datas vira "a"', semTravessao('Evento nos dias 7–8/11 — anotado.'), 'Evento nos dias 7 a 8/11, anotado.')
   eq('equipe confirma entra antes da pergunta', comEquipeConfirma('A mesa sai R$ 13,00 cada. Quantas você precisa?'), 'A mesa sai R$ 13,00 cada. Nossa equipe confere a disponibilidade e confirma o valor final. Quantas você precisa?')
   eq('equipe confirma sem pergunta vai no fim', comEquipeConfirma('A mesa sai R$ 13,00 cada.'), 'A mesa sai R$ 13,00 cada. Nossa equipe confere a disponibilidade e confirma o valor final.')

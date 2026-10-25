@@ -3,12 +3,14 @@ import { CONFIG } from './config'
 import { CRM_MAP } from './crm-map'
 import { logExec } from './execlog'
 import { contactName, contactTags, getContact } from './ghl'
+import { k, redis } from './redis'
 import { alreadyAnswered, getHydratedHistory, humanSpokeRecently, lastInbound, markAnswered, type ChatMsg } from './history'
 import { createBrain } from './llm'
 import { ghlPort } from './port'
 import { isResetCommand, resetContact } from './reset'
 import { rotear } from './router'
 import { clearState, getState, patchState } from './state'
+import { SO_AGRADECIMENTO } from './guards'
 import { aplicarFinalizacao, podeMover, type ToolCtx } from './tools'
 import { sendReply } from './transport'
 
@@ -41,7 +43,10 @@ export async function processContact(contactId: string, webhookId: string): Prom
     const tags = contactTags(contato).map(t => t.toLowerCase())
     if (tags.includes(CONFIG.humanTag)) return pular(`tag "${CONFIG.humanTag}"`, false)
     // Gate em código também (o workflow já filtra, mas fail-closed se alguém mexer nele)
-    if (CONFIG.gateTag && !tags.includes(CONFIG.gateTag)) return pular(`sem a tag "${CONFIG.gateTag}"`, false)
+    if (CONFIG.gateTag && !tags.includes(CONFIG.gateTag)) {
+      if (await disponhaPosHandoff(contactId, nome)) return
+      return pular(`sem a tag "${CONFIG.gateTag}"`, false)
+    }
 
     // Tag de gate de volta num lead já finalizado = novo ciclo
     const st0 = await getState(contactId)
@@ -157,4 +162,26 @@ export async function processContact(contactId: string, webhookId: string): Prom
   } finally {
     await releaseLock(contactId, lockOwner)
   }
+}
+
+const DISPONHA_JANELA_MS = 6 * 60 * 60 * 1000
+
+/**
+ * Depois do handoff a tag de gate sai e a IA para de responder. Exceção: o "obrigado" logo
+ * depois do resumo ganha um "Disponha! 😉" (uma vez, até 6 h depois, se ninguém da equipe
+ * escreveu). Qualquer outra mensagem fica com a equipe.
+ */
+async function disponhaPosHandoff(contactId: string, nome: string): Promise<boolean> {
+  const st = await getState(contactId)
+  if (!st.finalizado || Date.now() - Date.parse(st.finalizado.em) > DISPONHA_JANELA_MS) return false
+  const conv = await getHydratedHistory(contactId)
+  const target = lastInbound(conv.msgs)
+  if (!target || target.ts < Date.parse(st.finalizado.em) || !SO_AGRADECIMENTO.test(blocoAtual(conv.msgs).map(m => m.text).join(' '))) return false
+  if (await alreadyAnswered(contactId, target.id)) return false
+  if (await humanSpokeRecently(conv.raw, Date.now(), conv.corteMs)) return false
+  if ((await redis.set(k('disponha', contactId), '1', { nx: true, ex: 86400 })) !== 'OK') return false
+  const detail = await sendReply(contactId, 'Disponha! 😉', conv.instancia)
+  await markAnswered(contactId, target.id)
+  await logExec({ tipo: 'resposta', leadId: contactId, nome, detalhe: `disponha pós-handoff · ${detail}` })
+  return true
 }
