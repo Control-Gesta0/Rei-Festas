@@ -48,6 +48,10 @@ Card que já tem nº do pedido no ERP não gera outro orçamento.
 orçamento (um clique). O orçamento já sai com a linha `LOCAÇÃO: dd/mm/aaaa a dd/mm/aaaa`
 (período padrão pelas regras da loja; a Karol ajusta). A agenda de reservas lê os pedidos:
 
+**A IA consulta a agenda** (`consultar_disponibilidade`): "pela nossa agenda tem as 80 livres pro dia
+20/11; a Karol confirma quando fechar o orçamento". Sem estoque cadastrado ou sem VHSYS, ela não fala de
+disponibilidade. Nunca diz reservado ou garantido: só o pedido com sinal reserva.
+
 `GET /api/agenda?secret=…&data=20/11/2026` (ou `&de=…&ate=…`) → por item: total, reservado (pico no
 intervalo), livre e os pedidos que ocupam; mais `devolucoesPendentes` (período vencido sem "atendido") e
 `hoje` (pedidos que saem e voltam hoje). `&bruto=1` mostra os campos como o VHSYS devolve.

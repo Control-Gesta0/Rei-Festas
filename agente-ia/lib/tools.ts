@@ -2,6 +2,7 @@ import type OpenAI from 'openai'
 import { CRM_MAP, campoByKey, type Campo, type Porta } from './crm-map'
 import { montarPedido, reais, textoItens } from './catalogo'
 import { conferirEvidenciaData, dataPelaEvidencia, diasEntre, formatarData, hojeNoFuso, parseDataBR } from './datas'
+import { periodoPadrao, textoDisponibilidade } from './locacao'
 import { DISSE_NAO_SEI, evidenceFound, matchOption, norm, overlap, parseNumeroBR } from './guards'
 import { classificar } from './router'
 import { espalhar, formatSlot, resolverEscolha } from './slots'
@@ -37,6 +38,8 @@ export interface LeadPort {
   addNote(text: string): Promise<void>
   /** valor da oportunidade no funil (o "Valor" do card) */
   setValor?(valor: number): Promise<void>
+  /** agenda de reservas (VHSYS): livre de cada código no intervalo. Ausente = agenda não configurada */
+  disponibilidade?(codigos: string[], de: string, ate: string): Promise<Array<{ codigo: string; nome: string; total: number | null; livre: number | null }>>
   getState(): Promise<LeadState>
   patchState(p: Partial<LeadState>): Promise<LeadState>
   /** agenda: horários livres reais (ISO) */
@@ -195,6 +198,30 @@ export function buildTools(porta: Porta): OpenAI.Chat.ChatCompletionTool[] {
             },
           },
           required: ['itens'],
+          additionalProperties: false,
+        },
+      },
+    })
+    tools.push({
+      type: 'function',
+      function: {
+        name: 'consultar_disponibilidade',
+        description: 'Consulta a AGENDA DE RESERVAS da loja: quanto de cada item está livre no período da locação (retirada → devolução) para a data do evento. Use quando a pessoa perguntar se tem o item pra data, e na primeira vez que o pedido tiver itens e data. Passe os itens com o código do catálogo e a quantidade.',
+        parameters: {
+          type: 'object',
+          properties: {
+            itens: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: { codigo: { type: 'string' }, quantidade: { type: 'integer' } },
+                required: ['codigo', 'quantidade'],
+                additionalProperties: false,
+              },
+            },
+            data_evento: { type: 'string', description: 'dd/mm/aaaa. Vazio = a data do evento já gravada.' },
+          },
+          required: ['itens', 'data_evento'],
           additionalProperties: false,
         },
       },
@@ -505,6 +532,35 @@ export async function runTool(ctx: ToolCtx, name: string, input: Record<string, 
         return ok(`Atendimento da IA finalizado (${motivo}). Envie a mensagem de encerramento prevista no prompt para este caso. NÃO faça perguntas e NÃO prometa contato em prazo específico.`, { handoff: true, urgente })
       }
 
+      case 'consultar_disponibilidade': {
+        const cat = CRM_MAP.catalogo
+        if (!cat) return err('Catálogo não configurado.')
+        if (!port.disponibilidade) return ok('A agenda de reservas não está ligada. Não fale de disponibilidade: diga que a Karol confere para a data.')
+        const hoje = hojeNoFuso(ctx.timezone)
+        const state = await port.getState()
+        const bruto = String(input.data_evento || '').trim() || String(state.respostas?.dataEvento || '').replace(/^\S+\s/, '')
+        const d = bruto ? parseDataBR(bruto, hoje) : { error: 'sem data' }
+        if ('error' in d) return err('Sem data do evento válida: pergunte a data antes de consultar a agenda.')
+        const pedidos = (Array.isArray(input.itens) ? input.itens as Array<Record<string, unknown>> : [])
+          .map(i => ({ item: cat.itens.find(c => c.codigo === String(i.codigo || '').trim().toUpperCase()), quantidade: Number(i.quantidade) }))
+          .filter(i => i.item && Number.isInteger(i.quantidade) && i.quantidade > 0)
+        if (!pedidos.length) return err('Nenhum item válido: passe o código do catálogo e a quantidade.')
+        const periodo = periodoPadrao(d.iso)
+        let agenda: Awaited<ReturnType<NonNullable<LeadPort['disponibilidade']>>>
+        try { agenda = await port.disponibilidade(pedidos.map(p => p.item!.codigo), periodo.inicio, periodo.fim) }
+        catch (e) {
+          console.warn('[consultar_disponibilidade] agenda fora:', e)
+          return ok('A agenda não respondeu agora. Não fale de disponibilidade: diga que a Karol confere para a data.')
+        }
+        const r = textoDisponibilidade(pedidos.map(p => {
+          const a = agenda.find(x => x.codigo === p.item!.codigo)
+          return { codigo: p.item!.codigo, nome: p.item!.nome, quantidade: p.quantidade, livre: a ? a.livre : null }
+        }), periodo, d.iso)
+        // Só libera falar de "agenda"/"livre" se a agenda tinha o estoque de algum item
+        if (r.conhecidos) await port.patchState({ agendaConsultada: { data: d.iso, ok: r.ok, em: Date.now() } })
+        return ok(r.texto)
+      }
+
       case 'calcular_tabela': {
         const cat = CRM_MAP.catalogo
         if (!cat) return err('Catálogo não configurado.')
@@ -516,6 +572,11 @@ export async function runTool(ctx: ToolCtx, name: string, input: Record<string, 
           vistos.add(chave)
           return true
         })
+        // Mesmo pedido mandado com código E sem código (mesma evidência) = eco: fica só a linha do catálogo
+        const evComCodigo = new Set(lista.filter(i => String(i.codigo || '').trim()).map(i => norm(String(i.evidencia || ''))))
+        for (let i = lista.length - 1; i >= 0; i--) {
+          if (!String(lista[i].codigo || '').trim() && evComCodigo.has(norm(String(lista[i].evidencia || '')))) lista.splice(i, 1)
+        }
         const semEvidencia = lista.filter(i => !evidenceFound(String(i.evidencia || ''), ctx.leadText)).map(i => String(i.descricao || i.codigo))
         if (semEvidencia.length) return err(`Nada gravado: a pessoa não pediu ${semEvidencia.join(', ')} (a evidência não aparece no que ela escreveu). NÃO invente item; pergunte.`)
         const r = montarPedido(lista.map(i => ({ codigo: String(i.codigo || ''), descricao: String(i.descricao || ''), quantidade: Number(i.quantidade) })), cat.itens)

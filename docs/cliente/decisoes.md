@@ -211,7 +211,14 @@ evidência em `docs/cliente/diagnostico.md` §7.1 e §7.2.
 - **Agenda de reservas** (`GET /api/agenda`): lê os pedidos não cancelados com a linha
   LOCAÇÃO e calcula, por item e por data, total do estoque, pico reservado e livre.
   Orçamento não reserva; só pedido.
-- Fases seguintes: contrato em PDF a partir do pedido; IA consultando a agenda.
+- **Fase 3 (25/10/2026): a IA consulta a agenda.** Ferramenta `consultar_disponibilidade`
+  (itens + data do evento → período padrão → livre por item). Fala decidida pelo mestre:
+  "pela nossa agenda tem as 80 livres pro dia 20/11; a Karol confirma quando fechar o
+  orçamento". Falta: "só tem 50 livres; a Karol vê opções pra completar". Estoque não
+  cadastrado: não fala de agenda. Nunca "reservado/garantido" (só o sinal pago reserva).
+  Travas em código: falar de "agenda"/"livres" sem ter consultado é reescrito; pergunta de
+  disponibilidade com data cobra a consulta uma vez. Evals: 18/18.
+- Próxima fase: contrato e fatura de locação em PDF a partir do pedido.
 - **Estoque = patrimônio da loja** (testado em 25/10/2026): o pedido do VHSYS não mexe
   no estoque nem no financeiro sozinho; cada um tem uma ação própria no menu do pedido.
   Gerar o pedido a partir do orçamento **não** lança estoque. "Lançar estoque" e "Estornar

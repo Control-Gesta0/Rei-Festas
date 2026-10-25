@@ -3,7 +3,8 @@ import path from 'path'
 import OpenAI from 'openai'
 import { CRM_MAP, type Porta } from './crm-map'
 import { addUsage, emptyUsage, type Usage } from './execlog'
-import { checkReply, comCumprimento, keepLastQuestion, type Violation } from './guards'
+import { checkReply as checkReplyBase, comCumprimento, keepLastQuestion, type Violation } from './guards'
+import { falouDaAgenda, perguntouDisponibilidade } from './locacao'
 import { formatSlot } from './slots'
 import { hojeNoFuso, pedidoUrgentePronto, proximosDias } from './datas'
 import type { ChatMsg } from './history'
@@ -111,7 +112,8 @@ export function createBrain(opts: LlmOptions) {
   }
 
   /** Reescreve uma vez se a trava pegou algo; se insistir, sai o texto seguro. */
-  async function enforce(messages: Msg[], text: string, usage: Usage, handoff: boolean, lastLead: string): Promise<{ text: string; guard: string[] }> {
+  async function enforce(messages: Msg[], text: string, usage: Usage, handoff: boolean, lastLead: string, extra: (t: string) => Violation[] = () => []): Promise<{ text: string; guard: string[] }> {
+    const checkReply = (t: string) => [...checkReplyBase(t), ...extra(t)]
     const v1 = checkReply(text)
     if (!v1.length) return { text, guard: [] }
     if (v1.every(v => v.regra === 'mais de uma pergunta')) {
@@ -121,7 +123,7 @@ export function createBrain(opts: LlmOptions) {
     const fix: Msg[] = [
       ...messages,
       { role: 'assistant', content: text },
-      { role: 'system', content: `[TRAVA DO SISTEMA] Sua resposta NÃO foi enviada porque violou: ${v1.map((v: Violation) => `${v.regra} ("${v.trecho}")`).join('; ')}. Reescreva a mensagem inteira respeitando o prompt, com NO MÁXIMO um ponto de interrogação e sem travessão. Mantenha o que estava certo (valores, total, nomes dos itens). Responda só com o texto do WhatsApp.` },
+      { role: 'system', content: `[TRAVA DO SISTEMA] Sua resposta NÃO foi enviada porque violou: ${v1.map((v: Violation) => `${v.regra} ("${v.trecho}")`).join('; ')}. Reescreva a mensagem inteira respeitando o prompt, com NO MÁXIMO um ponto de interrogação e sem travessão. Mantenha tudo o que estava certo (valores, total, nomes dos itens, data e o próximo passo com a Karol). Responda só com o texto do WhatsApp.` },
     ]
     const c = await call(fix, null, usage)
     const text2 = (c.message?.content || '').trim()
@@ -151,6 +153,7 @@ export function createBrain(opts: LlmOptions) {
     let cobrouUrgente = false
     let cobrouData = false
     let cobrouFechamento = false
+    let cobrouAgenda = false
     const tools = buildTools(ctx.porta)
     const messages: Msg[] = [...(await buildSystem(ctx, lead)), ...turns]
 
@@ -180,6 +183,12 @@ export function createBrain(opts: LlmOptions) {
         messages.push({ role: 'system', content: '[SISTEMA] O evento é hoje ou amanhã e o pedido já tem itens, data e entrega ou retirada. Chame finalizar_atendimento(urgente) AGORA, com a evidência do lead, e depois escreva a mensagem de encerramento sem pergunta: diga que a Karol já vai ver se dá pra atender.' })
         continue
       }
+      // Perguntou se tem o item pra uma data e a agenda não foi consultada: uma cobrança (fase 3, D20)
+      if (!handoff && !cobrouAgenda && step < MAX_STEPS - 1 && ctx.port.disponibilidade && !toolsUsed.includes('consultar_disponibilidade') && perguntouDisponibilidade(ctx.lastLeadText, !!(await ctx.port.getState()).respostas?.dataEvento)) {
+        cobrouAgenda = true
+        messages.push({ role: 'system', content: '[SISTEMA] A pessoa perguntou se tem o item para a data. Chame consultar_disponibilidade agora (itens com código e quantidade, e a data) e responda com o que ela devolver.' })
+        continue
+      }
       // Roteiro completo e ninguém finalizou: uma cobrança (o card precisa ir para a Karol)
       if (!handoff && !cobrouFechamento && step < MAX_STEPS - 1 && ctx.porta.roteiro.length && !agendaAtiva() && !snapshot(ctx.porta, await ctx.port.getState()).abertos.length) {
         cobrouFechamento = true
@@ -194,7 +203,10 @@ export function createBrain(opts: LlmOptions) {
         continue
       }
       if (!text) break
-      const safe = await enforce(messages, text, usage, handoff, ctx.lastLeadText)
+      // Disponibilidade só depois de consultar a agenda (D20, fase 3): sem consulta, "agenda"/"livres" é invenção
+      const consultou = !!(await ctx.port.getState()).agendaConsultada
+      const semAgenda = (t: string): Violation[] => (!consultou && falouDaAgenda(t) ? [{ regra: 'falou da agenda sem consultar_disponibilidade', trecho: falouDaAgenda(t)! }] : [])
+      const safe = await enforce(messages, text, usage, handoff, ctx.lastLeadText, semAgenda)
       if (lead.primeiroContatoDaPorta) safe.text = comCumprimento(safe.text, horaNoFuso(ctx.timezone), ctx.lastLeadText)
       if (!handoff) {
         const alerta = CRM_MAP.alertas.find(a => a.finaliza && a.re.test(ctx.lastLeadText) && a.finaliza.seResposta.test(safe.text))
