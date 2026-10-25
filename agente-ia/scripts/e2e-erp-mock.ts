@@ -90,6 +90,22 @@ globalThis.fetch = (async (input: any, init: any = {}) => {
       return hit.length ? ok({ status: 'success', data: hit }) : new Response('{"status":"error","data":"Nenhum cliente encontrado"}', { status: 403 })
     }
     if (url.endsWith('/clientes') && method === 'POST') { const c = { id_cliente: 500, ...body }; vhsysClientes.push(c); return ok({ status: 'success', data: c }) }
+    if (url.includes('/produtos?limit=')) {
+      return ok({ status: 'success', data: [
+        { id_produto: 11, cod_produto: 'LOU-001', desc_produto: 'Prato Refeição Fundo', estoque_produto: '300' },
+        { id_produto: 22, cod_produto: 'TAL-009', desc_produto: 'Garfo Refeição Class', estoque_produto: '200' },
+      ] })
+    }
+    if (url.includes('/pedidos?limit=')) {
+      return ok({ status: 'success', data: [
+        { id_ped: 7001, id_pedido: 3, nome_cliente: 'Maria', status_pedido: 'Em Aberto', obs_pedido: 'Data do evento: 31/10/2099\nLOCAÇÃO: 30/10/2099 a 02/11/2099 (retirada → devolução)' },
+        { id_ped: 7002, id_pedido: 4, nome_cliente: 'João', status_pedido: 'Cancelado', obs_pedido: 'LOCAÇÃO: 30/10/2099 a 02/11/2099' },
+        { id_ped: 7003, id_pedido: 5, nome_cliente: 'Ana', status_pedido: 'Em Aberto', obs_pedido: 'sem período' },
+        { id_ped: 7004, id_pedido: 6, nome_cliente: 'Bia', status_pedido: 'Em Aberto', obs_pedido: 'LOCAÇÃO: 01/10/2000 a 03/10/2000' },
+      ] })
+    }
+    const mpp = url.match(/\/pedidos\/(\d+)\/produtos/)
+    if (mpp) return ok({ status: 'success', data: mpp[1] === '7001' ? [{ id_produto: 11, qtde_produto: '50.00' }, { id_produto: 22, qtde_produto: '30' }] : [{ id_produto: 11, qtde_produto: '999' }] })
     if (url.includes('/produtos?cod_produto=')) {
       const cod = decodeURIComponent(url.split('cod_produto=')[1])
       return ok({ status: 'success', data: [{ id_produto: cod === 'LOU-001' ? 11 : 22, cod_produto: cod }] })
@@ -181,6 +197,15 @@ async function main() {
   const rt = await sincronizarPedido('C1', 'O1', true)
   eq('retentar: usa o orçamento nº 2', [rt.ok, rt.orcamento?.numero], [true, '2'])
   eq('retentar: nenhum orçamento novo e só o produto que faltava', [vhsysOrcamentos.length, orcProdutos['900'].map((p: any) => String(p.id_produto))], [1, ['11', '22']])
+
+  // Agenda de reservas: lê pedidos do VHSYS
+  const { montarAgenda } = await import('../lib/agenda')
+  db.clear()
+  const ag = await montarAgenda('2099-10-31')
+  const linha = (c: string) => ag.itens.find(i => i.codigo === c)
+  eq('agenda: pedido em aberto com LOCAÇÃO reserva os itens', [linha('LOU-001')?.reservado, linha('LOU-001')?.livre, linha('TAL-009')?.livre], [50, 250, 170])
+  eq('agenda: cancelado e já devolvido não reservam; sem período fica para conferir', [ag.reservas, ag.semPeriodo], [1, ['5']])
+  eq('agenda: fora do período não ocupa', (await montarAgenda('2099-11-10')).itens.length, 0)
 
   // 7. Sem CPF: não envia, marca erro para a Karol ver
   reset(null)

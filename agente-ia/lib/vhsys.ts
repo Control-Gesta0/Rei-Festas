@@ -108,3 +108,56 @@ export async function produtosDoOrcamento(idOrcamento: string): Promise<string[]
 export async function adicionarProdutoOrcamento(idOrcamento: string, payload: Record<string, unknown>): Promise<void> {
   await vh('POST', `/orcamentos/${encodeURIComponent(idOrcamento)}/produtos`, payload)
 }
+
+// ---------- Leitura para a agenda de reservas (somente GET) ----------
+
+export type Bruto = Record<string, unknown>
+const primeiro = (r: Bruto, ...chaves: string[]) => { for (const c of chaves) if (r[c] != null && r[c] !== '') return r[c]; return undefined }
+
+/** Uma página de uma listagem. O VHSYS limita a 250 por página. */
+async function pagina(path: string, offset: number): Promise<Bruto[]> {
+  const sep = path.includes('?') ? '&' : '?'
+  return lista<Bruto>(await vh<Bruto[]>('GET', `${path}${sep}limit=250&offset=${offset}`))
+}
+
+/** Todas as páginas, com teto (a agenda não precisa do histórico inteiro). */
+export async function listarTudo(path: string, maxPaginas = 20): Promise<Bruto[]> {
+  const out: Bruto[] = []
+  for (let p = 0; p < maxPaginas; p++) {
+    const pg = await pagina(path, p * 250)
+    out.push(...pg)
+    if (pg.length < 250) break
+  }
+  return out
+}
+
+export interface ProdutoEstoque { id: string; codigo: string; nome: string; estoque: number | null }
+
+export function produtoEstoqueDe(r: Bruto): ProdutoEstoque {
+  const est = primeiro(r, 'estoque_produto', 'qtde_estoque', 'estoque', 'saldo_estoque')
+  const n = est == null ? NaN : Number(String(est).replace(',', '.'))
+  return {
+    id: String(primeiro(r, 'id_produto', 'id') ?? ''),
+    codigo: String(r.cod_produto ?? '').toUpperCase(),
+    nome: String(r.desc_produto ?? ''),
+    estoque: Number.isFinite(n) ? n : null,
+  }
+}
+
+export interface PedidoResumo { id: string; numero: string; cliente: string; obs: string; situacao: string }
+
+/** id interno (vai na URL) e número que aparece na tela; o nome dos campos é conferido com ?bruto=1 em /api/agenda */
+export function pedidoDe(r: Bruto): PedidoResumo {
+  return {
+    id: String(primeiro(r, 'id_ped', 'id_pedido_interno', 'id') ?? primeiro(r, 'id_pedido') ?? ''),
+    numero: String(primeiro(r, 'id_pedido', 'numero_pedido', 'num_pedido') ?? ''),
+    cliente: String(primeiro(r, 'nome_cliente', 'razao_cliente') ?? ''),
+    obs: [r.obs_pedido, r.obs_interno_pedido].filter(Boolean).join('\n'),
+    situacao: String(primeiro(r, 'status_pedido', 'situacao_pedido', 'status') ?? ''),
+  }
+}
+
+export async function itensDoPedido(idPedido: string): Promise<Array<{ idProduto: string; quantidade: number }>> {
+  const l = lista<Bruto>(await vh<Bruto[]>('GET', `/pedidos/${encodeURIComponent(idPedido)}/produtos`))
+  return l.map(p => ({ idProduto: String(p.id_produto ?? ''), quantidade: Number(String(p.qtde_produto ?? 0).replace(',', '.')) || 0 }))
+}

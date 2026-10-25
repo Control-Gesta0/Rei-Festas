@@ -167,7 +167,11 @@ async function main() {
     eq('sem menu → porta padrão direto', r.tipo === 'porta' && r.porta.id, CRM_MAP.menu.portaPadrao)
   }
 
-  const extra = await import('./test-cliente').catch(() => null)
+  // Só "arquivo não existe" é ignorado: teste do cliente com erro de sintaxe tem que FALHAR, não sumir
+  const extra = await import('./test-cliente').catch((e: unknown) => {
+    if (/Cannot find module|ERR_MODULE_NOT_FOUND/.test(String((e as { code?: string })?.code || e))) return null
+    throw e
+  })
   if (extra?.default) { const extras = await extra.default(eq); falhas += extras }
 
   console.log(falhas ? `\n❌ ${falhas} falha(s)` : '\n✅ Todas as travas OK')

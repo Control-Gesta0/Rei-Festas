@@ -24,6 +24,9 @@
     },
     "api/erp.ts": {
       "maxDuration": 120
+    },
+    "api/agenda.ts": {
+      "maxDuration": 120
     }
   }
 }

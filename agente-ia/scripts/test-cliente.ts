@@ -137,5 +137,32 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   eq('erp: retirada não leva endereço do evento', /Endereço do evento/.test(obs), false)
   eq('erp: observação lista o que conferir', /Arranjo de flores/.test(obs), true)
 
+  // ---------- Locação sem o app Locações (agenda de reservas) ----------
+  const loc = await import('../lib/locacao')
+  const per = (d: string) => { const p = loc.periodoPadrao(d); return `${p.inicio}>${p.fim}` }
+  eq('locação: evento no sábado = sexta → segunda', per('2026-10-31'), '2026-10-30>2026-11-02')
+  eq('locação: evento na quarta = terça → quinta', per('2026-11-04'), '2026-11-03>2026-11-05')
+  eq('locação: evento na segunda = sexta → terça', per('2026-11-02'), '2026-10-30>2026-11-03')
+  eq('locação: evento na sexta = quinta → segunda (sem devolução no sábado)', per('2026-10-30'), '2026-10-29>2026-11-02')
+  eq('locação: linha do período', loc.linhaPeriodo({ inicio: '2026-10-30', fim: '2026-11-02' }), 'LOCAÇÃO: 30/10/2026 a 02/11/2026')
+  eq('locação: lê a linha no meio da observação', loc.lerPeriodo('Data do evento: 31/10/2026\nLOCAÇÃO: 30/10/2026 a 02/11/2026 (retirada → devolução)'), { inicio: '2026-10-30', fim: '2026-11-02' })
+  eq('locação: aceita "Locacao" sem acento e "até"', loc.lerPeriodo('locacao: 01/12/2026 até 03/12/2026'), { inicio: '2026-12-01', fim: '2026-12-03' })
+  eq('locação: período invertido não vale', loc.lerPeriodo('LOCAÇÃO: 05/12/2026 a 01/12/2026'), null)
+  eq('locação: sem a linha', loc.lerPeriodo('Data do evento: 31/10/2026'), null)
+  const estoqueT = new Map([['LOU-001', { nome: 'Prato Fundo', total: 100 }], ['COP-006', { nome: 'Taça', total: null }]])
+  const reservasT = [
+    { pedido: 'A', cliente: 'a', inicio: '2026-10-30', fim: '2026-11-02', itens: [{ codigo: 'LOU-001', quantidade: 50 }] },
+    { pedido: 'B', cliente: 'b', inicio: '2026-11-03', fim: '2026-11-05', itens: [{ codigo: 'LOU-001', quantidade: 40 }] },
+    { pedido: 'C', cliente: 'c', inicio: '2026-10-31', fim: '2026-11-01', itens: [{ codigo: 'LOU-001', quantidade: 20 }, { codigo: 'COP-006', quantidade: 80 }] },
+  ]
+  const ag = (de: string, ate?: string) => Object.fromEntries(loc.calcularAgenda(reservasT, estoqueT, de, ate).map(l => [l.codigo, `${l.reservado}/${l.livre}`]))
+  eq('agenda: um dia soma as locações que se sobrepõem', ag('2026-10-31')['LOU-001'], '70/30')
+  eq('agenda: intervalo usa o pico, não a soma de dias diferentes', ag('2026-10-30', '2026-11-05')['LOU-001'], '70/30')
+  eq('agenda: dia sem sobreposição', ag('2026-11-03')['LOU-001'], '40/60')
+  eq('agenda: dia antes de tudo não reserva', ag('2026-10-29')['LOU-001'], '0/100')
+  eq('agenda: estoque desconhecido = livre null', ag('2026-10-31')['COP-006'], '80/null')
+  const obsLoc = erp.obsOrcamento({ ...dadosErp, dataEvento: '2026-10-31' }, [])
+  eq('orçamento: observação leva a linha LOCAÇÃO pelo período padrão', loc.lerPeriodo(obsLoc), { inicio: '2026-10-30', fim: '2026-11-02' })
+
   return 0
 }

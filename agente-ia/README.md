@@ -44,7 +44,12 @@ Card em **Pedido fechado** → workflow do GHL → `POST /api/erp`. O agente:
 Deu errado (sem CPF, item sem código, VHSYS fora): tag `erp-erro` e nota com o motivo; corrija e mova o card de novo.
 Card que já tem nº do pedido no ERP não gera outro orçamento.
 
-O app Locações não tem API: a Karol lança a locação a partir do orçamento.
+**Locação sem o app Locações (D20).** O pedido de locação é o **pedido do VHSYS** gerado do
+orçamento (um clique). O orçamento já sai com a linha `LOCAÇÃO: dd/mm/aaaa a dd/mm/aaaa`
+(período padrão pelas regras da loja; a Karol ajusta). A agenda de reservas lê os pedidos:
+
+`GET /api/agenda?secret=…&data=20/11/2026` (ou `&de=…&ate=…`) → por item: total, reservado (pico no
+intervalo), livre e os pedidos que ocupam. `&bruto=1` mostra os campos como o VHSYS devolve.
 
 `ERP_MODO=gravar` grava no VHSYS; sem isso é **ensaio** (lê e mostra o plano). Conferência manual,
 sempre em ensaio: `GET /api/erp?secret=…&contact_id=…`.
@@ -105,6 +110,7 @@ Local: os scripts leem `agente-ia/.env.local` e o `.env` da raiz do repositório
 | `GET /api/evals?secret=…` | roda os cenários na Vercel |
 | `POST /api/erp?secret=…` | webhook do workflow "Pedido fechado": cliente e orçamento no VHSYS |
 | `GET /api/erp?secret=…&contact_id=…` | ensaio da sincronização com o VHSYS (não grava) |
+| `GET /api/agenda?secret=…&data=dd/mm/aaaa` | agenda de reservas: quanto de cada item está livre na data |
 
 ## Fora desta versão
 
