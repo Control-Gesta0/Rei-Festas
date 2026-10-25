@@ -18,6 +18,8 @@ export const REGRAS_CLIENTE: Array<{ regra: string; re: RegExp }> = [
   { regra: 'valor sem dizer que a Karol confirma', re: /^(?![\s\S]*\bkarol\b)[\s\S]*?R\$\s?\d[\d.,]*/i },
   // Tom humano: travessão denuncia texto de IA no WhatsApp
   { regra: 'travessão', re: /[—–]/ },
+  // Abertura de chatbot: a loja não começa mensagem com "Perfeito" (nucleo.md, Como você escreve)
+  { regra: 'abertura "Perfeito"', re: /^\W*perfeit[oa]\b/i },
   // Resíduo de chatbot
   { regra: 'resíduo de chatbot', re: /espero ter ajudado|posso ajudar (?:com|em) mais alguma coisa|fico (?:à|a) disposi[çc][ãa]o|estou (?:à|a) disposi[çc][ãa]o|[óo]tima pergunta/i },
 ]

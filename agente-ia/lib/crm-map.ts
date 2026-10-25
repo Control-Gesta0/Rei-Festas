@@ -64,7 +64,7 @@ const CAMPOS = {
     key: 'tipoEvento', id: 'zAsQOC8o4L5FmvbBrU6L', model: 'opportunity', ghlName: 'Tipo de evento', type: 'select',
     name: 'Tipo de evento',
     options: ['Aniversário', 'Casamento', 'Chá ou festa familiar', 'Corporativo', 'Igreja', 'Escola', 'Condomínio', 'Outro'],
-    pergunta: 'É que tipo de evento?',
+    pergunta: 'Que tipo de evento vai ser?',
   },
   convidados: {
     key: 'convidados', id: '7cXQk0DmSCybetCJ9MFt', model: 'opportunity', ghlName: 'Nº de convidados', type: 'numeric',

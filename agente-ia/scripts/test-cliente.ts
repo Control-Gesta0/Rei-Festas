@@ -31,6 +31,8 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   eq('rey: travessão bloqueia', regras('A mesa — a redonda — leva 8 lugares.'), ['travessão'])
   eq('rey: "Ótima pergunta" bloqueia', regras('Ótima pergunta! A redonda de 1,30 leva 8 lugares.'), ['resíduo de chatbot'])
   eq('rey: "Fico à disposição" bloqueia', regras('O total fica R$ 100,00, a Karol confirma. Fico à disposição!'), ['resíduo de chatbot'])
+  eq('rey: abrir com "Perfeito" bloqueia', regras('Perfeito, Eduardo. Ficou assim: 50 pratos.'), ['abertura "Perfeito"'])
+  eq('rey: "perfeito" no meio passa', regras('Fica perfeito pra mesa de doces 😉'), [])
   eq('rey: fala real da loja passa', regras('Olá, bom dia! Tudo bem? Essa é a nossa bege adamascada 😉'), [])
 
   eq('cumprimento entra na primeira mensagem', comCumprimento('Funciona assim...', 14), 'Olá, boa tarde! Tudo bem? Funciona assim...')
