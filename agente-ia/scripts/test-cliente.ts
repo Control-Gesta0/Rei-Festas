@@ -1,0 +1,115 @@
+/**
+ * TESTES DO CLIENTE · Rey Festas (rodam junto com `npm test`).
+ * Para cada regra em lib/regras.ts: um texto que DEVE bloquear e um texto
+ * aprovado que DEVE passar. Mais: datas, soma do pedido e campos condicionais.
+ */
+type Eq = (nome: string, got: unknown, want: unknown) => void
+
+export default async function testesCliente(eq: Eq): Promise<number> {
+  const { checkReply, comCumprimento } = await import('../lib/guards')
+  const regras = (t: string) => [...new Set(checkReply(t).map(v => v.regra))]
+
+  // ---------- Travas de texto ----------
+  eq('rey: "temos disponível" bloqueia', regras('Temos disponível sim pra essa data!'), ['afirmou disponibilidade'])
+  eq('rey: "está reservado" bloqueia', regras('Pronto, está reservado pra você.'), ['afirmou disponibilidade'])
+  eq('rey: "data garantida" bloqueia', regras('Sua data está garantida.'), ['afirmou disponibilidade'])
+  eq('rey: Karol confere passa', regras('Temos a Taça Bistrô Vinho no catálogo, R$ 1,20 cada. A Karol confere se tem disponível pra data e te manda o orçamento.'), [])
+  eq('rey: disponibilidade (substantivo) passa', regras('A Karol confere a disponibilidade para o dia 20/11.'), [])
+  eq('rey: chave Pix por e-mail bloqueia', regras('A chave Pix é financeiro@reyfestas.com.br'), ['mandou dado de pagamento'])
+  eq('rey: CNPJ bloqueia', regras('Pode fazer o Pix no CNPJ 12.345.678/0001-90'), ['mandou dado de pagamento'])
+  eq('rey: link de pagamento bloqueia', regras('Segue o link: https://link.stone.com.br/abc'), ['mandou dado de pagamento'])
+  eq('rey: formas de pagamento passam', regras('Pode ser Pix ou cartão pelo link de pagamento em até 3x sem juros. A Karol manda junto com o orçamento.'), [])
+  eq('rey: 15% bloqueia', regras('Consigo 15% pra você.'), ['percentual fora da regra'])
+  eq('rey: 20% de higienização bloqueia', regras('Se voltar sujo tem taxa de 20%.'), ['percentual fora da regra'])
+  eq('rey: 7% e 50% passam', regras('Pagando tudo à vista tem 7% de desconto no material. Pra reservar, o sinal é de 50%.'), [])
+  eq('rey: 70% não passa como 7%', regras('Dá pra dar 70% de desconto.'), ['percentual fora da regra'])
+  eq('rey: valor de multa bloqueia', regras('Cancelando, a multa de R$ 200 é cobrada.'), ['valor de multa', 'valor sem dizer que a Karol confirma'])
+  eq('rey: falar que a Karol explica a multa passa', regras('Sobre multa de cancelamento, a Karol te explica certinho.'), [])
+  eq('rey: valor sem a Karol bloqueia', regras('As 80 taças saem R$ 96,00. Vai ser com entrega?'), ['valor sem dizer que a Karol confirma'])
+  eq('rey: valor com a Karol passa', regras('As 80 taças saem R$ 96,00 de tabela. A Karol confere a disponibilidade pro dia 20/11.'), [])
+  eq('rey: sem valor não exige a Karol', regras('Vai ser com entrega no local ou você retira aqui na loja?'), [])
+  eq('rey: travessão bloqueia', regras('A mesa — a redonda — leva 8 lugares.'), ['travessão'])
+  eq('rey: "Ótima pergunta" bloqueia', regras('Ótima pergunta! A redonda de 1,30 leva 8 lugares.'), ['resíduo de chatbot'])
+  eq('rey: "Fico à disposição" bloqueia', regras('O total fica R$ 100,00, a Karol confirma. Fico à disposição!'), ['resíduo de chatbot'])
+  eq('rey: fala real da loja passa', regras('Olá, bom dia! Tudo bem? Essa é a nossa bege adamascada 😉'), [])
+
+  eq('cumprimento entra na primeira mensagem', comCumprimento('Funciona assim...', 14), 'Olá, boa tarde! Tudo bem? Funciona assim...')
+  eq('cumprimento segue o período do lead', comCumprimento('Funciona assim...', 9, 'oi, boa tarde!'), 'Olá, boa tarde! Tudo bem? Funciona assim...')
+  eq('cumprimento não duplica', comCumprimento('Olá, bom dia! Tudo bem? Temos sim.', 9), 'Olá, bom dia! Tudo bem? Temos sim.')
+
+  // ---------- Datas ----------
+  const { parseDataBR, conferirEvidenciaData, formatarData, pedidoUrgentePronto, proximoDiaDaSemana, dataPelaEvidencia } = await import('../lib/datas')
+  const hoje = '2026-10-25' // domingo
+  const d = (raw: string) => { const r = parseDataBR(raw, hoje); return 'iso' in r ? r.iso : 'erro' }
+  eq('data dd/mm sem ano = próxima', d('20/11'), '2026-11-20')
+  eq('data dd/mm que já passou este ano = ano que vem', d('10/03'), '2027-03-10')
+  eq('data por extenso', d('20 de novembro'), '2026-11-20')
+  eq('data ISO', d('2026-12-12'), '2026-12-12')
+  eq('data com ano curto', d('05/01/27'), '2027-01-05')
+  eq('data passada recusa', d('10/10/2026'), 'erro')
+  eq('data inválida recusa', d('31/02/2027'), 'erro')
+  eq('formata com dia da semana', formatarData('2026-10-31'), 'sáb 31/10/2026')
+  eq('"sábado" bate', conferirEvidenciaData('é no sábado', '2026-10-31', hoje), null)
+  eq('"sábado" com data errada recusa', !!conferirEvidenciaData('é no sábado', '2026-11-01', hoje), true)
+  eq('"amanhã" bate', conferirEvidenciaData('preciso pra amanhã', '2026-10-26', hoje), null)
+  eq('"amanhã" errado recusa', !!conferirEvidenciaData('preciso pra amanhã', '2026-10-27', hoje), true)
+  eq('"pra hoje às 18h" vira hoje', dataPelaEvidencia('pra hoje às 18h', hoje), hoje)
+  eq('"pra hoje" vira hoje', dataPelaEvidencia('pra hoje', hoje), hoje)
+  eq('"amanhã" vira amanhã', dataPelaEvidencia('preciso pra amanhã', hoje), '2026-10-26')
+  eq('"sábado" vira o próximo sábado', dataPelaEvidencia('pro sábado', hoje), '2026-10-31')
+  eq('"sábado dia 31" fica com o parse normal', dataPelaEvidencia('sábado dia 31', hoje), null)
+  eq('"20/11" fica com o parse normal', dataPelaEvidencia('pro dia 20/11', hoje), null)
+  eq('próximo sábado', proximoDiaDaSemana(hoje, 6), '2026-10-31')
+  eq('urgente pronto (amanhã, itens, entrega)', pedidoUrgentePronto({ respostas: { dataEvento: 'seg 26/10/2026', itens: 'x', entregaRetirada: 'Entrega' } }, hoje), true)
+  eq('urgente sem entrega não', pedidoUrgentePronto({ respostas: { dataEvento: 'seg 26/10/2026', itens: 'x' } }, hoje), false)
+  eq('evento em 5 dias não é urgente', pedidoUrgentePronto({ respostas: { dataEvento: 'sex 30/10/2026', itens: 'x', entregaRetirada: 'Entrega' } }, hoje), false)
+  eq('"sábado 31/10" com número não confere dia', conferirEvidenciaData('sábado 31/10', '2026-10-31', hoje), null)
+
+  // ---------- Soma do pedido ----------
+  const { montarPedido, textoItens, reais } = await import('../lib/catalogo')
+  const cat = [
+    { codigo: 'MOB-010', nome: 'Jogo de Mesa 0,70X0,70 com 04 Cadeiras C/ Braço', categoria: 'Mobiliário', preco: 26 },
+    { codigo: 'COP-006', nome: 'Taça Bistrô 300ML - Vinho Tinto', categoria: 'Copos e Taças', preco: 1.2 },
+    { codigo: 'TEC-001', nome: 'Caminho de Mesa - Amarelo', categoria: 'Toalhas e Tecidos', preco: null },
+  ]
+  const r = montarPedido([
+    { codigo: 'mob-010', descricao: 'jogo de mesa', quantidade: 5 },
+    { codigo: 'COP-006', descricao: 'taça vinho', quantidade: 80 },
+    { codigo: 'COP-006', descricao: 'taça vinho', quantidade: 10 },
+    { codigo: 'TEC-001', descricao: 'caminho amarelo', quantidade: 3 },
+    { codigo: '', descricao: 'Tenda 10x10', quantidade: 1 },
+  ], cat)
+  eq('pedido soma em código (5×26 + 90×1,20)', 'pedido' in r ? r.pedido.total : r, 238)
+  eq('pedido junta código repetido', 'pedido' in r ? r.pedido.linhas.find(l => l.item?.codigo === 'COP-006')?.quantidade : r, 90)
+  eq('pedido separa sem preço e fora do catálogo', 'pedido' in r ? [r.pedido.semPreco, r.pedido.foraDoCatalogo] : r, [['Caminho de Mesa - Amarelo'], ['Tenda 10x10']])
+  eq('texto do card', 'pedido' in r ? textoItens(r.pedido).split('\n')[0] : r, 'MOB-010 · 5 × Jogo de Mesa 0,70X0,70 com 04 Cadeiras C/ Braço · R$ 26,00 cada = R$ 130,00')
+  eq('código inexistente recusa', 'erros' in montarPedido([{ codigo: 'XYZ-999', descricao: 'x', quantidade: 1 }], cat), true)
+  eq('data como item recusa', 'erros' in montarPedido([{ codigo: '', descricao: 'dia 20/11', quantidade: 1 }], cat), true)
+  eq('código de faca com descrição de garfo recusa', 'erros' in montarPedido([{ codigo: 'TAL-007', descricao: 'Garfo Refeição Class', quantidade: 30 }], (await import('../lib/catalogo-dados')).CATALOGO), true)
+  eq('"mesas com cadeira" no jogo de mesa passa', 'pedido' in montarPedido([{ codigo: 'MOB-009', descricao: 'mesas com cadeira', quantidade: 5 }], (await import('../lib/catalogo-dados')).CATALOGO), true)
+  eq('descrição do lead com o código certo passa', 'pedido' in montarPedido([{ codigo: 'TAL-009', descricao: 'garfos', quantidade: 30 }], (await import('../lib/catalogo-dados')).CATALOGO), true)
+  eq('quantidade zero recusa', 'erros' in montarPedido([{ codigo: 'COP-006', descricao: 'x', quantidade: 0 }], cat), true)
+  eq('reais com milhar', reais(1234.5), 'R$ 1.234,50')
+
+  // ---------- Catálogo gerado ----------
+  const { CATALOGO } = await import('../lib/catalogo-dados')
+  eq('catálogo carregado (209 itens)', CATALOGO.length, 209)
+  eq('catálogo sem código repetido', new Set(CATALOGO.map(i => i.codigo)).size, CATALOGO.length)
+
+  // ---------- Campos condicionais ----------
+  const { CRM_MAP } = await import('../lib/crm-map')
+  const veto = CRM_MAP.finalizar.vetoMotivo
+  eq('"pessoa ou robô?" não é pediu_humano', veto.pediu_humano.re.test('Tô falando com uma pessoa ou robô?') && !veto.pediu_humano.salvo?.test('Tô falando com uma pessoa ou robô?'), true)
+  eq('"é robô? quero falar com a Karol" é pediu_humano', !!veto.pediu_humano.salvo?.test('é robô? quero falar com a Karol'), true)
+  eq('"vocês alugam tenda?" não é fora_do_escopo', veto.fora_do_escopo.re.test('Vocês alugam tenda e freezer?'), true)
+  eq('boleto de fornecedor segue fora_do_escopo', veto.fora_do_escopo.re.test('aqui é da distribuidora de água, segue o boleto do mês'), false)
+  const { snapshot } = await import('../lib/tools')
+  const porta = CRM_MAP.portas[0]
+  const abertos = (respostas: Record<string, string>) => snapshot(porta, { respostas }).abertos.map(c => c.key)
+  eq('retirada não pede endereço do evento', abertos({ itens: 'x', dataEvento: 'x', entregaRetirada: 'Retirada na loja' }).includes('enderecoEvento'), false)
+  eq('entrega pede endereço do evento', abertos({ itens: 'x', dataEvento: 'x', entregaRetirada: 'Entrega' })[0], 'enderecoEvento')
+  eq('com cadastro não pede RG nem e-mail', abertos({ cadastroErp: 'Sim' }).filter(k => ['rg', 'email', 'enderecoResidencial'].includes(k)), [])
+  eq('sem cadastro pede RG', abertos({ cadastroErp: 'Não' }).includes('rg'), true)
+  eq('empresa sem cadastro não pede RG', abertos({ cadastroErp: 'Não', perfil: 'Empresa, escola ou igreja' }).includes('rg'), false)
+  return 0
+}

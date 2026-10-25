@@ -135,3 +135,129 @@ Se o sistema de locação tiver API, o passo 3 pode ser automatizado depois.
 8. O app de locação é o Acercom? Ele tem API? Qual o papel do VHSYS então
    (financeiro, cadastro, os dois)?
 9. Regras de diária, desconto à vista e condição de pagamento padrão.
+
+## Atualização de 06 e 07/10/2026 (sessão do Drive, unificada aqui em 24/10)
+
+Respostas da Karol (financeiro, braço direito do Noel) pelo WhatsApp. Detalhe e
+evidência em `docs/cliente/diagnostico.md` §7.1 e §7.2.
+
+| # | Decisão | Origem |
+|---|---|---|
+| D5 | O app de locação é o **app Locações do VHSYS**. O Acercom (sistema atual) será desligado | Karol, 06/10 |
+| D6 | Locação e financeiro (Stone, integração nativa) ficam no VHSYS; o GHL cuida da conversa, do funil de vendas e dos lembretes. O funil "Locação: Operação" no GHL foi criado e removido no mesmo dia | mestre, 07/10 |
+| D7 | Sinal de 50%; restante até **1 dia antes** do evento; semana do evento = integral; **sem pagamento na entrega** (exceção só com a Karol) | Karol, 06-07/10 |
+| D8 | Desconto **7%** à vista para todos, inclusive parceiros; acima disso só Karol ou Noel | Karol, 07/10 |
+| D9 | Frete = km da loja ao local (rota de carro) × R$ 2 × 4 trechos, **mínimo R$ 50** | Karol, 06-07/10 |
+| D10 | Retirada sábado 9h às 11h30; **não há devolução no sábado** (locação de fim de semana: sexta a segunda) | Karol, 06-07/10 |
+| D11 | A IA **pode falar o preço de tabela**, avisando que o valor final é confirmado | Karol, 06/10 |
+| D12 | **Preços de dezembro são os mesmos** do resto do ano | mestre, 06/10 |
+| D13 | Lembretes automáticos de saldo, véspera da entrega e devolução: **sim** | Karol, 06/10 |
+| D14 | Uma única instância de WhatsApp no GHL ("Atendimento"). Lista de exclusão: Noel, Diogo (motorista), Karol, Fabio (consultor) | Karol e mestre, 06/10 |
+| D15 | A Karol atende do início ao fim e recebe o pedido da IA | mestre, 06/10 |
+
+### O que muda nas decisões anteriores
+
+- **D1 (proposta):** continua. A IA soma o pedido pela tabela (em código) e manda o
+  resumo com valores; a Karol confere a disponibilidade no app Locações e manda o
+  orçamento oficial. No funil, a etapa da IA se chama **"Pedido completo"** (é o
+  "Proposta enviada" de D1).
+- **D1, acréscimo de dezembro:** cancelado por D12.
+- **D2 (buffet/evento):** **ainda não está no prompt nem no funil**. Falta: porta
+  consultiva, calendário do consultor (Fabio?) e a etapa "Apresentação agendada".
+- **D3:** resolvido por D5. O app Locações não tem API (testado em 07/10); a IA não
+  consulta disponibilidade. Risco aberto: pelo manual, a reserva de estoque do app
+  vale até a locação ser finalizada, sem olhar a data. Teste pedido ao cliente.
+- **D4 (cliente no VHSYS):** continua. No prompt atual, o cadastro é pedido no fim
+  da coleta (depois de itens, data e logística), como a equipe já faz hoje, e não
+  na abertura.
+- "Ainda em aberto" 2, 6 e 9: respondidos por D7 a D11 e pela carga do catálogo
+  (209 produtos no VHSYS, `scripts/importar_catalogo.py`).
+
+### Pendências desta parte
+
+- Multa de cancelamento e taxa de higienização (Karol confirmando com o Noel).
+- Nome da atendente virtual e link do catálogo com fotos.
+- Teste de reserva por data no app Locações.
+- Migração do Acercom: clientes (API) e locações futuras (lançamento manual no app).
+- Valor de reposição dos 209 itens, quantidade de 34 e preço de 9 no VHSYS.
+- Aprovação do documento `docs/cliente/Rey-Festas-Projeto-CRM-e-IA.pdf`.
+
+## Plano de contas aplicado no VHSYS (24/10/2026)
+
+- Proposta de 97 categorias **aprovada** pela Rey Festas.
+- `scripts/categorias_vhsys.py --aplicar`: 97 criadas (ids 9875014 a 9875110); a
+  simulação seguinte deu 97 existentes, 0 a criar, 0 conflitos.
+- A pedido do mestre, as categorias padrão do VHSYS foram **excluídas** (vão para a
+  lixeira, recuperáveis): 45 de 47.
+- Mantidas por estarem em uso:
+  - `OUTRAS DESPESAS`: conta a pagar em aberto "Rey Festas Gestão", R$ 400,
+    vencimento 10/10/2026. Reclassificar numa categoria do plano e depois excluir.
+  - `Saldo Inicial`: saldo de abertura no extrato da conta bancária. Não é linha do
+    DRE; fica.
+- Falta: ligar cada categoria ao grupo do DRE em Parâmetros > Categorias (a API não faz).
+
+## DRE montado no VHSYS (24/10/2026)
+
+O vínculo categoria → linha do DRE no VHSYS não fica na categoria: fica num
+**modelo de DRE** (Financeiro > DRE Gerencial > Gerenciar modelos). Criado o modelo
+**"DRE Rey Festas"** pela tela (a API não cobre), com 12 grupos na ordem da proposta:
+
+| Grupo | Tipo no VHSYS | Categorias |
+|---|---|---|
+| (+) Receita bruta | Receita | 10.01, 10.02 |
+| (-) Deduções da receita | Despesa | 20.01.01-02, 20.02.01-02 |
+| (=) Receita líquida | Totalizador | Receita bruta + Deduções |
+| (-) Custos dos serviços | Despesa | 30.01.01-05, 30.02.01-06, 30.03.01-04, 30.04.01-03 |
+| (=) Margem de contribuição | Totalizador | + Custos |
+| (-) Despesas com pessoal | Despesa | 40.01.01-09 |
+| (-) Despesas administrativas e comerciais | Despesa | 50.01.01-14, 50.02.01-04 |
+| (=) Resultado operacional | Totalizador | + Pessoal + Administrativas |
+| (+/-) Resultado financeiro | Receitas e Despesas | 10.03.01-03, 50.03.01-05 |
+| (+/-) Resultado não operacional | Receitas e Despesas | 60.01.01, 60.01.05, 70.01.01 |
+| (=) Resultado líquido | Totalizador | + Financeiro + Não operacional |
+| Abaixo do resultado: investimentos, empréstimos e retiradas | Receitas e Despesas | 60.01.02-03, 70.02.01-04, 70.03.01-02, 90.01.01 |
+
+- 71 categorias vinculadas (as 73 lançáveis menos 60.01.04 e 70.01.02, transferências,
+  fora do DRE). Títulos (10, 20.01...) não entram: não recebem lançamento.
+- Conferido após recarregar a página e gerando o relatório DRE Gerencial anual 2026.
+- Cicatrizes da tela: o nome do grupo com "−" (sinal de menos Unicode) dá "Erro
+  interno do servidor"; usar "-". Grupo novo entra no topo e categoria nova entra no
+  topo do grupo (dentro de cada grupo a ordem ficou decrescente, só estética).
+- A conta a pagar "Rey Festas Gestão" (R$ 400) era teste e foi excluída pelo mestre;
+  `OUTRAS DESPESAS` foi excluída em seguida. A conta ficou com as 97 categorias do
+  plano + `Saldo Inicial` (saldo de abertura do banco, fora do DRE).
+
+## Migração do Acercom (LocPlus 5.4.25): levantamento (24/10/2026)
+
+- O LocPlus roda numa sessão remota HTML5 (canvas): não há texto na página, nem
+  exportação, nem cópia da grade. Exportar pelo programa salva no servidor da Acercom.
+- **Clientes:** códigos até ~9.400. Caminho recomendado: exportação pedida ao suporte
+  da Acercom (mensagem pronta enviada ao mestre). Decisão pendente: migrar todos ou só
+  quem alugou nos últimos 2-3 anos.
+- **Pedidos em aberto** (tela Devolução), lidos um a um em 24/10: **100 pedidos**.
+  - 54 **futuros** (evento depois de 24/10): out 7, nov 35, dez 10, mar/2027 2; 44
+    clientes; 14 da MRV. São estes que vão para o app Locações.
+  - 26 em andamento (devolução até ~28/10): terminar no Acercom.
+  - 20 com devolução vencida (14 a 23/10): provável falta de baixa; Karol confirma.
+  - Lista com nomes e telefones em `dados/` (fora do git).
+- **Cicatriz:** o "Detalhe" da tela Devolução é o formulário de baixa (vem com data
+  efetiva = hoje e Retorno preenchido). Não usar para leitura; um Enter registra a
+  devolução. Itens dos pedidos: ler por relatório (somente leitura) ou pela exportação.
+- **Decisão (24/10/2026, mestre): pedidos não serão migrados.** O escopo da migração do
+  Acercom é só cadastro: **clientes, fornecedores e produtos**. Os pedidos em aberto
+  terminam no Acercom.
+
+### Situação em 25/10/2026
+
+- **Aguardando a exportação da Acercom** (clientes, fornecedores e produtos em Excel/CSV),
+  pedida pela Rey Festas. Os arquivos vão para `dados/` (fora do git).
+- Nenhuma listagem imprimível de cadastro foi encontrada no LocPlus. "Clientes por
+  Tabela" é só um resumo por tabela de preço (18.949 pedidos no histórico).
+- **Cicatriz:** não automatizar cliques no LocPlus. Com o atraso da sessão remota, um
+  clique de menu caiu dentro da tela de Produtos e abriu um registro novo vazio (o
+  sistema recusou por falta de nome; a Rey Festas cancelou a linha). Antes, o Detalhe da
+  Devolução se mostrou um formulário de baixa. Leitura só por relatório ou exportação.
+- Quando os arquivos chegarem: importar clientes e fornecedores no VHSYS pela API
+  (`/clientes`, com `tipo_cadastro`), conferindo CPF/CNPJ antes de criar; casar
+  produtos pelo código antigo (está na observação dos 209 produtos) e completar o
+  preço de reposição.

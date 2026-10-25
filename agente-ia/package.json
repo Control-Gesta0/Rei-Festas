@@ -1,0 +1,24 @@
+{
+  "name": "agente-ia-rey-festas",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Atendente virtual da Rey Festas no WhatsApp · GHL + OpenAI + Upstash Redis, sem n8n. Motor: template de agente da Control Gestão.",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "tsx scripts/test-guards.ts",
+    "evals": "tsx scripts/evals.ts",
+    "dev": "vercel dev",
+    "e2e:mock": "tsx scripts/e2e-mock.ts"
+  },
+  "dependencies": {
+    "@upstash/redis": "^1.34.3",
+    "@vercel/functions": "^1.5.2",
+    "openai": "^4.104.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@vercel/node": "^5.0.2",
+    "tsx": "^4.23.13",
+    "typescript": "^5.7.2"
+  }
+}
