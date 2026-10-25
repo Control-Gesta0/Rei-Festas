@@ -37,11 +37,12 @@ PIPELINES = {
     "Locação: Vendas": [
         "Novo contato",
         "Coletando pedido",
-        "Pedido completo",        # fim da alcada da IA
+        "Pronto para orçamento",  # fim da alcada da IA (era "Pedido completo", mesmo id)
         "Orçamento enviado",
-        "Aguardando pagamento",
-        "Reservado",              # sinal ou total pago = ganho
+        "Pedido fechado",         # o aceite: fim da jornada no GHL (vai para o VHSYS)
     ],
+    # 25/10/2026: "Aguardando pagamento" virou "Pedido fechado" (mesmo id, pela
+    # posicao) e "Reservado" saiu. Reserva, sinal e recebimento sao do VHSYS.
     # "Locação: Operação" foi criado e REMOVIDO em 07/10/2026: a operação vive no app
     # Locações do VHSYS e um funil espelho no GHL seria trabalho em dobro.
 }
@@ -75,6 +76,7 @@ CAMPOS = [
     ("contact", "CPF ou CNPJ", "TEXT", None),
     ("contact", "RG", "TEXT", None),
     ("contact", "Cadastro no ERP", "SINGLE_OPTIONS", ["Sim", "Não"]),
+    ("contact", "ID no ERP", "TEXT", None),  # id_cliente do VHSYS (agente-ia/lib/erp-sync.ts)
 ]
 
 

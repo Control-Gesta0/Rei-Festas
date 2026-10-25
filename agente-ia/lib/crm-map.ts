@@ -10,8 +10,10 @@
  *  2. O pedido é o roteiro. Itens e total saem da tool calcular_tabela (código);
  *     endereço do evento e quem recebe só valem para entrega; RG, e-mail e
  *     endereço residencial só para quem ainda não tem cadastro.
- *  3. Alçada: Novo contato → Coletando pedido → Pedido completo. Daí para a
- *     frente (orçamento, pagamento, reserva) é da Karol.
+ *  3. Alçada: Novo contato → Coletando pedido → Pronto para orçamento. Daí para a
+ *     frente é da Karol: Orçamento enviado → Pedido fechado (o aceite, fim da
+ *     jornada no GHL). Reserva, sinal, saldo e recebimento ficam no VHSYS
+ *     (lib/erp-sync.ts manda cliente e orçamento quando o card chega ao fim).
  */
 
 import { CATALOGO } from './catalogo-dados'
@@ -123,8 +125,8 @@ const VENDAS = {
   coletando: 'dc5166ef-4691-4c6b-9e49-e9853f861691',
   pedidoCompleto: '11db15a4-0a58-4e67-8930-8dd8bee17fec',
   orcamentoEnviado: '5adfc03a-b939-43fd-899f-1442221e59bd',
-  aguardandoPagamento: 'f2ef927d-4b4d-49a7-ac91-d7026c588c7b',
-  reservado: '9c2b36d6-fd18-420b-822a-3ae44d5f0808',
+  /** o aceite: fim da jornada no GHL. Era "Aguardando pagamento" (mesmo id, renomeada) */
+  pedidoFechado: 'f2ef927d-4b4d-49a7-ac91-d7026c588c7b',
 }
 
 export const CRM_MAP = {
@@ -171,12 +173,14 @@ export const CRM_MAP = {
     etapaInicialId: VENDAS.novoContato,
     stageOrder: [
       VENDAS.novoContato, VENDAS.coletando, VENDAS.pedidoCompleto,
-      VENDAS.orcamentoEnviado, VENDAS.aguardandoPagamento, VENDAS.reservado,
+      VENDAS.orcamentoEnviado, VENDAS.pedidoFechado,
     ] as string[],
+    /** card que chega aqui vai para o VHSYS (workflow do GHL → /api/erp) */
+    etapaPedidoFechadoId: VENDAS.pedidoFechado,
     /**
      * Cliente que volta com pedido novo: só reaproveita a oportunidade aberta
-     * que ainda está na mão da IA. Pedido antigo (orçamento, pagamento,
-     * reservado, ganho ou perdido) fica intacto e nasce uma oportunidade nova.
+     * que ainda está na mão da IA. Pedido antigo (orçamento enviado, fechado,
+     * ganho ou perdido) fica intacto e nasce uma oportunidade nova.
      */
     reusarSoNasEtapas: [VENDAS.novoContato, VENDAS.coletando] as string[],
   },
@@ -184,7 +188,7 @@ export const CRM_MAP = {
   etapas: [
     { id: VENDAS.novoContato, name: 'Novo contato', quando: 'a conversa começou (o código faz isso sozinho)', soCodigo: true },
     { id: VENDAS.coletando, name: 'Coletando pedido', quando: 'a pessoa passou o primeiro item ou a data do evento' },
-    { id: VENDAS.pedidoCompleto, name: 'Pedido completo', quando: 'o pedido e o cadastro estão completos (o código move ao finalizar)', soCodigo: true },
+    { id: VENDAS.pedidoCompleto, name: 'Pronto para orçamento', quando: 'o pedido e o cadastro estão completos (o código move ao finalizar)', soCodigo: true },
   ] as Etapa[],
   /** movidas pelo CÓDIGO, não pelo modelo */
   etapaEmContatoId: VENDAS.novoContato,

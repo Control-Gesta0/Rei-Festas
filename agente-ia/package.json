@@ -5,10 +5,11 @@
   "description": "Atendente virtual da Rey Festas no WhatsApp · GHL + OpenAI + Upstash Redis, sem n8n. Motor: template de agente da Control Gestão.",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "tsx scripts/test-guards.ts",
+    "test": "tsx scripts/test-guards.ts && tsx scripts/e2e-erp-mock.ts",
     "evals": "tsx scripts/evals.ts",
     "dev": "vercel dev",
-    "e2e:mock": "tsx scripts/e2e-mock.ts"
+    "e2e:mock": "tsx scripts/e2e-mock.ts",
+    "e2e:erp": "tsx scripts/e2e-erp-mock.ts"
   },
   "dependencies": {
     "@upstash/redis": "^1.34.3",

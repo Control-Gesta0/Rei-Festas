@@ -113,5 +113,29 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   eq('com cadastro não pede RG nem e-mail', abertos({ cadastroErp: 'Sim' }).filter(k => ['rg', 'email', 'enderecoResidencial'].includes(k)), [])
   eq('sem cadastro pede RG', abertos({ cadastroErp: 'Não' }).includes('rg'), true)
   eq('empresa sem cadastro não pede RG', abertos({ cadastroErp: 'Não', perfil: 'Empresa, escola ou igreja' }).includes('rg'), false)
+  // ---------- ERP (pedido fechado → VHSYS) ----------
+  const erp = await import('../lib/erp')
+  const textoCard = 'LOU-001 · 30 × Prato Refeição Fundo · R$ 3,50 cada = R$ 105,00\nTAL-009 · 30 × Garfo Refeição Class · R$ 1,20 cada = R$ 36,00\n1 × Arranjo de flores (fora do catálogo)'
+  const lidos = erp.lerItens(textoCard, CATALOGO)
+  eq('erp: lê código e quantidade do card', lidos.itens.map(i => `${i.codigo}:${i.quantidade}:${i.valorUnit}`), ['LOU-001:30:3.5', 'TAL-009:30:1.2'])
+  eq('erp: item fora do catálogo vai para conferência', lidos.semCodigo, ['1 × Arranjo de flores (fora do catálogo)'])
+  eq('erp: total dos itens', erp.totalItens(lidos.itens), 141)
+  eq('erp: linha editada sem preço usa a tabela', erp.lerItens('LOU-001 · 10 × prato fundo', CATALOGO).itens[0]?.valorUnit, 3.5)
+  eq('erp: preço negociado na linha vale', erp.lerItens('LOU-001 · 10 × Prato · R$ 3,00 cada = R$ 30,00', CATALOGO).itens[0]?.valorUnit, 3)
+  eq('erp: código repetido soma', erp.lerItens('LOU-001 · 10 × Prato\nLOU-001 · 5 × Prato', CATALOGO).itens[0]?.quantidade, 15)
+  eq('erp: código inexistente não entra', erp.lerItens('XYZ-999 · 3 × Coisa', CATALOGO).itens.length, 0)
+  eq('erp: CPF formatado', erp.documento('12345678909'), { tipo: 'PF', digitos: '12345678909', formatado: '123.456.789-09' })
+  eq('erp: CNPJ formatado', erp.documento('11.222.333/0001-81')?.formatado, '11.222.333/0001-81')
+  eq('erp: documento inválido', erp.documento('123'), null)
+  eq('erp: data ISO do GHL', erp.dataBR('2026-10-31'), '31/10/2026')
+  eq('erp: data epoch ms do GHL', erp.dataBR(Date.UTC(2026, 9, 31, 12)), '31/10/2026')
+  const dadosErp = { nome: 'Maria Souza', documento: '12345678909', rg: '12.345.678-9', email: 'm@x.com', telefone: '+5511999999999', itensTexto: textoCard, dataEvento: '2026-10-31', entregaRetirada: 'Retirada na loja', enderecoEvento: 'Rua A, 1', tipoEvento: 'Aniversário', convidados: 50, opportunityId: 'op1' }
+  const cli = erp.payloadCliente(dadosErp, erp.documento('12345678909')!, '25/10/2026')
+  eq('erp: cliente PF com CPF formatado', [cli.tipo_pessoa, cli.cnpj_cliente, cli.razao_cliente, cli.rg_cliente], ['PF', '123.456.789-09', 'Maria Souza', '12.345.678-9'])
+  const obs = erp.obsOrcamento(dadosErp, lidos.semCodigo)
+  eq('erp: observação tem data, retirada e evento', /31\/10\/2026/.test(obs) && /Retirada na loja/.test(obs) && /Aniversário, 50 convidados/.test(obs), true)
+  eq('erp: retirada não leva endereço do evento', /Endereço do evento/.test(obs), false)
+  eq('erp: observação lista o que conferir', /Arranjo de flores/.test(obs), true)
+
   return 0
 }

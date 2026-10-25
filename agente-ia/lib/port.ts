@@ -66,6 +66,10 @@ export function ghlPort(contactId: string): LeadPort {
     async addTags(tags) { await addContactTags(contactId, tags); cached = undefined },
     async removeTags(tags) { await removeContactTags(contactId, tags); cached = undefined },
     async addNote(text) { await addContactNote(contactId, text) },
+    async setValor(valor) {
+      const o = await ensureOpp()
+      await updateOpportunity(o.id, { monetaryValue: valor })
+    },
     getState: () => getState(contactId),
     patchState: p => patchState(contactId, p),
 

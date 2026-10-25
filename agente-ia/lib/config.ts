@@ -38,6 +38,13 @@ export const CONFIG = {
   // Gate: só atende quem tem a tag. Vazio = atende todos (só no fim da rampagem).
   gateTag: (process.env.GATE_TAG || '').toLowerCase(),
   humanTag: (process.env.HUMAN_TAG || 'atendimento-humano').toLowerCase(),
+  // ERP (VHSYS): opcionais para o agente; só a sincronização de pedido fechado usa
+  vhsysAccessToken: process.env.VHSYS_ACCESS_TOKEN || '',
+  vhsysSecretToken: process.env.VHSYS_SECRET_ACCESS_TOKEN || '',
+  vhsysBaseUrl: (process.env.VHSYS_BASE_URL || 'https://api.vhsys.com/v2').replace(/\/+$/, ''),
+  /** "gravar" cria cliente e orçamento no VHSYS; qualquer outro valor é ensaio (só lê e mostra) */
+  erpGravar: (process.env.ERP_MODO || '').toLowerCase() === 'gravar',
+
   /** contatos que podem mandar "reset" (contact ids do GHL) */
   testContactIds: list(process.env.TEST_CONTACT_IDS),
 }

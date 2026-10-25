@@ -21,6 +21,9 @@
     },
     "api/conversa.ts": {
       "maxDuration": 30
+    },
+    "api/erp.ts": {
+      "maxDuration": 120
     }
   }
 }

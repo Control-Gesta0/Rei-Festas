@@ -89,7 +89,7 @@ export const CENARIOS: Cenario[] = [
     ],
     msgs: ['Maria Aparecida Souza, 123.456.789-09'],
     checks: [
-      ...base, finalizou('qualificado'), naEtapa('Pedido completo'),
+      ...base, finalizou('qualificado'), naEtapa('Pronto para orçamento'),
       { nome: 'tag ia-pedido-completo', fn: w => w.tags.has('ia-pedido-completo') },
       { nome: 'resumo gravado no campo Resumo da IA', fn: w => !!w.fields[CRM_MAP.finalizar.campoResumo.id] },
       naoDisse('não repetiu o CPF', /123\.456\.789-09|12345678909/),
