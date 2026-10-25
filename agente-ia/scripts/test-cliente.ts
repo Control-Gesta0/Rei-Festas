@@ -6,7 +6,7 @@
 type Eq = (nome: string, got: unknown, want: unknown) => void
 
 export default async function testesCliente(eq: Eq): Promise<number> {
-  const { checkReply, comCumprimento } = await import('../lib/guards')
+  const { checkReply, comCumprimento, comEquipeConfirma } = await import('../lib/guards')
   const regras = (t: string) => [...new Set(checkReply(t).map(v => v.regra))]
 
   // ---------- Travas de texto ----------
@@ -23,10 +23,11 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   eq('rey: 20% de higienização bloqueia', regras('Se voltar sujo tem taxa de 20%.'), ['percentual fora da regra'])
   eq('rey: 7% e 50% passam', regras('Pagando tudo à vista tem 7% de desconto no material. Pra reservar, o sinal é de 50%.'), [])
   eq('rey: 70% não passa como 7%', regras('Dá pra dar 70% de desconto.'), ['percentual fora da regra'])
-  eq('rey: valor de multa bloqueia', regras('Cancelando, a multa de R$ 200 é cobrada.'), ['valor de multa', 'valor sem dizer que a Karol confirma'])
+  eq('rey: valor de multa bloqueia', regras('Cancelando, a multa de R$ 200 é cobrada.'), ['valor de multa', 'valor sem dizer que a equipe confirma'])
   eq('rey: falar que a Karol explica a multa passa', regras('Sobre multa de cancelamento, a Karol te explica certinho.'), [])
-  eq('rey: valor sem a Karol bloqueia', regras('As 80 taças saem R$ 96,00. Vai ser com entrega?'), ['valor sem dizer que a Karol confirma'])
+  eq('rey: valor sem a Karol bloqueia', regras('As 80 taças saem R$ 96,00. Vai ser com entrega?'), ['valor sem dizer que a equipe confirma'])
   eq('rey: valor com a Karol passa', regras('As 80 taças saem R$ 96,00 de tabela. A Karol confere a disponibilidade pro dia 20/11.'), [])
+  eq('rey: valor com "nossa equipe" passa', regras('As 80 taças saem R$ 96,00 de tabela. Nossa equipe confere a disponibilidade pro dia 20/11.'), [])
   eq('rey: sem valor não exige a Karol', regras('Vai ser com entrega no local ou você retira aqui na loja?'), [])
   eq('rey: travessão bloqueia', regras('A mesa — a redonda — leva 8 lugares.'), ['travessão'])
   eq('rey: "Ótima pergunta" bloqueia', regras('Ótima pergunta! A redonda de 1,30 leva 8 lugares.'), ['resíduo de chatbot'])
@@ -35,6 +36,8 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   eq('rey: "perfeito" no meio passa', regras('Fica perfeito pra mesa de doces 😉'), [])
   eq('rey: fala real da loja passa', regras('Olá, bom dia! Tudo bem? Essa é a nossa bege adamascada 😉'), [])
 
+  eq('equipe confirma entra antes da pergunta', comEquipeConfirma('A mesa sai R$ 13,00 cada. Quantas você precisa?'), 'A mesa sai R$ 13,00 cada. Nossa equipe confere a disponibilidade e confirma o valor final. Quantas você precisa?')
+  eq('equipe confirma sem pergunta vai no fim', comEquipeConfirma('A mesa sai R$ 13,00 cada.'), 'A mesa sai R$ 13,00 cada. Nossa equipe confere a disponibilidade e confirma o valor final.')
   eq('cumprimento entra na primeira mensagem', comCumprimento('Funciona assim...', 14), 'Olá, boa tarde! Tudo bem? Aqui é a assistente virtual da Rey Festas 😊 Funciona assim...')
   eq('cumprimento segue o período do lead', comCumprimento('Funciona assim...', 9, 'oi, boa tarde!'), 'Olá, boa tarde! Tudo bem? Aqui é a assistente virtual da Rey Festas 😊 Funciona assim...')
   eq('cumprimento não duplica', comCumprimento('Olá, bom dia! Tudo bem? Temos sim.', 9), 'Olá, bom dia! Tudo bem? Aqui é a assistente virtual da Rey Festas 😊 Temos sim.')
@@ -171,7 +174,14 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   eq('modelo A: vencido e atendido some', cls('2026-10-20', 'Atendido'), 'ignorar')
   const perT = { inicio: '2026-11-19', fim: '2026-11-23' }
   const disp = (livre: number | null) => loc.textoDisponibilidade([{ codigo: 'COP-006', nome: 'Taça Vinho', quantidade: 80, livre }], perT, '2026-11-20')
-  eq('fase 3: livre suficiente = TEM e a Karol confirma', [disp(200).ok, /TEM/.test(disp(200).texto), /Karol confirma/.test(disp(200).texto)], [true, true, true])
+  {
+    const { quantidadeDita } = await import('../lib/tools')
+    eq('quantidade: "algumas mesas" não vale', quantidadeDita('algumas mesas e cadeiras', 1, 'preciso locar algumas mesas e cadeiras'), false)
+    eq('quantidade: número na evidência vale', quantidadeDita('80 taças', 80, 'quero 80 taças'), true)
+    eq('quantidade: número escrito vale', quantidadeDita('duas mesas', 2, 'quero duas mesas'), true)
+    eq('quantidade: dita em outra mensagem vale', quantidadeDita('mesas', 10, 'quero mesas\n10'), true)
+  }
+  eq('fase 3: livre suficiente = TEM e a equipe confirma', [disp(200).ok, /TEM/.test(disp(200).texto), /nossa equipe confirma/.test(disp(200).texto)], [true, true, true])
   eq('fase 3: falta mostra quanto falta', [disp(50).ok, /livres só 50 → FALTA 30/.test(disp(50).texto)], [false, true])
   eq('fase 3: estoque não cadastrado = não falar de disponibilidade', /NÃO fale de disponibilidade/.test(disp(null).texto), true)
   eq('fase 3: nunca reservado', /NUNCA diga reservado/.test(disp(200).texto), true)

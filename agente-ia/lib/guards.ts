@@ -108,3 +108,14 @@ export function comApresentacao(text: string): string {
   const resto = text.slice(m[0].length).trim()
   return resto ? `${m[0]} ${apres} ${resto}` : `${m[0]} ${apres}`
 }
+
+export const EQUIPE_CONFIRMA = 'valor sem dizer que a equipe confirma'
+
+/** Falou valor e esqueceu quem confirma: a frase entra antes da pergunta final (ou no fim). */
+export function comEquipeConfirma(text: string): string {
+  const frase = 'Nossa equipe confere a disponibilidade e confirma o valor final.'
+  const frases = text.trim().split(/(?<=[.!?])\s+/)
+  const ultima = frases[frases.length - 1]
+  if (frases.length > 1 && ultima.includes('?')) return [...frases.slice(0, -1), frase, ultima].join(' ')
+  return `${text.trim()} ${frase}`
+}
