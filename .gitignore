@@ -5,3 +5,5 @@ __pycache__/
 saida/
 de-para.csv
 dados/
+node_modules/
+.vercel/
