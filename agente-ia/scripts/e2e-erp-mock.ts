@@ -97,7 +97,8 @@ globalThis.fetch = (async (input: any, init: any = {}) => {
     const nenhum = (o: string) => new Response(`{"status":"error","data":"Nenhum ${o} encontrado"}`, { status: 403 })
     if (url.endsWith('/orcamentos') && method === 'POST') {
       const n = vhsysOrcamentos.length
-      const o = { id_orcamento: 900 + n, id_pedido: 123 + n, id_cliente: body.id_cliente, obs_interno_pedido: body.obs_interno_pedido }
+      // como o VHSYS real: o total começa no valor mandado na criação e soma cada produto adicionado (teste de 25/10: deu R$ 350 num pedido de R$ 175)
+      const o = { id_orcamento: 900 + n, id_pedido: 123 + n, id_cliente: body.id_cliente, obs_interno_pedido: body.obs_interno_pedido, total: Number(body.valor_total_produtos || 0) }
       vhsysOrcamentos.push(o)
       return criarResponde === 'ok' ? ok({ status: 'success', data: o }) : ok({ code: '404', status: 'error', data: 'Erro ao comunicar com a API' })
     }
@@ -108,7 +109,11 @@ globalThis.fetch = (async (input: any, init: any = {}) => {
     }
     const mp = url.match(/\/orcamentos\/(\d+)\/produtos$/)
     if (mp && method === 'GET') return orcProdutos[mp[1]]?.length ? ok({ status: 'success', data: orcProdutos[mp[1]] }) : nenhum('produto')
-    if (mp && method === 'POST') { (orcProdutos[mp[1]] ||= []).push(body); return ok({ status: 'success', data: body }) }
+    if (mp && method === 'POST') {
+      (orcProdutos[mp[1]] ||= []).push(body)
+      const o = vhsysOrcamentos.find(x => String(x.id_orcamento) === mp[1]); if (o) o.total += Number(body.valor_total_produto || 0)
+      return ok({ status: 'success', data: body })
+    }
     throw new Error('VHSYS mock sem rota: ' + method + ' ' + url)
   }
   throw new Error('rede no teste: ' + url)
@@ -131,7 +136,7 @@ async function main() {
   eq('ensaio: ok', [e.ok, e.ensaio, e.erro], [true, true, undefined])
   eq('ensaio: cliente novo planejado com CPF formatado', [e.cliente?.novo, e.cliente?.payload?.cnpj_cliente], [true, '123.456.789-09'])
   eq('ensaio: 2 produtos com id do VHSYS', e.orcamento?.produtos.map(p => `${p.id_produto}:${p.qtde_produto}:${p.valor_unit_produto}`), ['11:30:3.50', '22:30:1.20'])
-  eq('ensaio: total do orçamento', e.orcamento?.payload.valor_total_produtos, '141.00')
+  eq('ensaio: total do pedido', e.orcamento?.total, 141)
   eq('ensaio: data do evento lida do fieldValueDate', /31\/10\/2026/.test(String(e.orcamento?.payload.obs_pedido)), true)
   eq('ensaio: nada foi gravado', posts.length, 0)
 
@@ -140,6 +145,7 @@ async function main() {
   const g = await sincronizarPedido('C1', 'O1', true)
   eq('gravar: ok', [g.ok, g.erro], [true, undefined])
   eq('gravar: VHSYS recebeu cliente, orçamento e 2 produtos', vhsysPosts().map(p => p.url.replace('https://api.vhsys.com/v2', '')), ['/clientes', '/orcamentos', '/orcamentos/900/produtos', '/orcamentos/900/produtos'])
+  eq('gravar: total do orçamento no VHSYS = soma dos produtos (não dobra)', vhsysOrcamentos[0]?.total, 141)
   eq('gravar: orçamento ligado ao cliente criado', posts.find(p => p.url.endsWith('/orcamentos'))?.body.id_cliente, '500')
   eq('gravar: nº do orçamento no card e oportunidade ganha', [oportunidade.customFields.find((f: any) => f.id === CAMPO_ORC)?.fieldValue, oportunidade.status], ['123', 'won'])
   eq('gravar: id do cliente no contato', posts.find(p => p.url.endsWith('/contacts/C1') && p.body.customFields)?.body.customFields[0].field_value, '500')
