@@ -27,7 +27,7 @@ async function vh<T>(method: string, path: string, body?: unknown): Promise<T | 
       'Content-Type': 'application/json',
       'Cache-Control': 'no-cache',
     },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: body === undefined ? undefined : JSON.stringify(paraLatin1(body)),
   })
   const text = await res.text()
   if (res.status === 404 || (method === 'GET' && res.status === 403 && SEM_RESULTADO.test(text))) return null
@@ -35,6 +35,21 @@ async function vh<T>(method: string, path: string, body?: unknown): Promise<T | 
   const json = JSON.parse(text || '{}') as { status?: string; data?: T }
   if (json.status && json.status !== 'success') throw new Error(`VHSYS ${method} ${path}: ${text.slice(0, 300)}`)
   return (json.data ?? null) as T | null
+}
+
+/**
+ * O VHSYS grava em Latin-1: caractere fora dele (seta, travessão, emoji) faz o POST /orcamentos
+ * responder "Erro ao comunicar com a API" sem criar nada (suspeita do 3º teste real, 25/10/2026).
+ * Acentos do português ficam; o resto vira o equivalente simples ou sai.
+ */
+export function paraLatin1<T>(v: T): T {
+  if (typeof v === 'string') {
+    return v.replace(/[→⇒➔]/g, '->').replace(/[←]/g, '<-').replace(/[–—]/g, '-').replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/…/g, '...').replace(/•/g, '-')
+      .normalize('NFC').replace(/[^\u0000-\u00ff]/g, '') as T
+  }
+  if (Array.isArray(v)) return v.map(paraLatin1) as T
+  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, paraLatin1(x)])) as T
+  return v
 }
 
 const lista = <T>(d: T | T[] | null): T[] => (d ? (Array.isArray(d) ? d : [d]) : [])

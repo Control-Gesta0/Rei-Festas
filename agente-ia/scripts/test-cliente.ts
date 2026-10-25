@@ -176,6 +176,10 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   const perT = { inicio: '2026-11-19', fim: '2026-11-23' }
   const disp = (livre: number | null) => loc.textoDisponibilidade([{ codigo: 'COP-006', nome: 'Taça Vinho', quantidade: 80, livre }], perT, '2026-11-20')
   {
+    const { paraLatin1 } = await import('../lib/vhsys')
+    eq('vhsys: seta, travessão e emoji saem; acento fica', paraLatin1({ obs: 'LOCAÇÃO: 06/11 a 09/11 (entrega → recolha) — ok 😉 · Endereço' }), { obs: 'LOCAÇÃO: 06/11 a 09/11 (entrega -> recolha) - ok  · Endereço' })
+  }
+  {
     const { textoSeguroDoPedido } = await import('../lib/tools')
     const { CRM_MAP: MAPA } = await import('../lib/crm-map')
     const porta = MAPA.portas[0]

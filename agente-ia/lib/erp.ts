@@ -113,7 +113,7 @@ export function obsOrcamento(d: DadosPedido, semCodigo: string[]): string {
   const evento = dataIso(d.dataEvento)
   const linhas = [
     // Período da locação (lido pela agenda de reservas, lib/locacao.ts). A Karol ajusta se combinar outra data
-    evento ? `${linhaPeriodo(periodoPadrao(evento))} (${d.entregaRetirada === 'Entrega' ? 'entrega → recolha' : 'retirada → devolução'}; ajuste se combinar outra data)` : '',
+    evento ? `${linhaPeriodo(periodoPadrao(evento))} (${d.entregaRetirada === 'Entrega' ? 'entrega e recolha' : 'retirada e devolução'}; ajuste se combinar outra data)` : '',
     d.dataEvento ? `Data do evento: ${dataBR(d.dataEvento)}` : '',
     d.entregaRetirada ? `Entrega ou retirada: ${d.entregaRetirada}` : '',
     d.entregaRetirada === 'Entrega' && d.enderecoEvento ? `Endereço do evento: ${d.enderecoEvento}` : '',
