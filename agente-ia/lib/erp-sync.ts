@@ -25,7 +25,7 @@ export interface ResultadoErp {
   contactId: string
   opportunityId?: string
   cliente?: { id?: string; novo: boolean; payload?: Record<string, unknown> }
-  orcamento?: { id?: string; numero?: string; payload: Record<string, unknown>; produtos: Record<string, unknown>[] }
+  orcamento?: { id?: string; numero?: string; total: number; payload: Record<string, unknown>; produtos: Record<string, unknown>[] }
   avisos: string[]
   erro?: string
 }
@@ -119,12 +119,12 @@ export async function sincronizarPedido(contactId: string, opportunityId: string
     const orcPayload: Record<string, unknown> = {
       nome_cliente: d.nome,
       data_pedido: hojeIso(),
-      valor_total_produtos: totalItens(usados).toFixed(2),
-      valor_total_orcamento: totalItens(usados).toFixed(2),
+      // SEM valor_total_*: o VHSYS soma sozinho cada produto adicionado. Mandar o total na
+      // criação dobrou o orçamento no teste real (R$ 350 num pedido de R$ 175, 25/10/2026)
       obs_pedido: obsOrcamento(d, [...semCodigo, ...faltando]),
       obs_interno_pedido: `Origem: CRM (GHL), oportunidade ${opp.id}`,
     }
-    r.orcamento = { payload: orcPayload, produtos }
+    r.orcamento = { total: totalItens(usados), payload: orcPayload, produtos }
 
     if (!gravar) {
       if (r.cliente.id) {

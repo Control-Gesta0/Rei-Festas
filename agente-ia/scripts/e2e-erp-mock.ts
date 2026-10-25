@@ -90,6 +90,22 @@ globalThis.fetch = (async (input: any, init: any = {}) => {
       return hit.length ? ok({ status: 'success', data: hit }) : new Response('{"status":"error","data":"Nenhum cliente encontrado"}', { status: 403 })
     }
     if (url.endsWith('/clientes') && method === 'POST') { const c = { id_cliente: 500, ...body }; vhsysClientes.push(c); return ok({ status: 'success', data: c }) }
+    if (url.includes('/produtos?limit=')) {
+      return ok({ status: 'success', data: [
+        { id_produto: 11, cod_produto: 'LOU-001', desc_produto: 'Prato Refeição Fundo', estoque_produto: '300' },
+        { id_produto: 22, cod_produto: 'TAL-009', desc_produto: 'Garfo Refeição Class', estoque_produto: '200' },
+      ] })
+    }
+    if (url.includes('/pedidos?limit=')) {
+      return ok({ status: 'success', data: [
+        { id_ped: 7001, id_pedido: 3, nome_cliente: 'Maria', status_pedido: 'Em Aberto', obs_pedido: 'Data do evento: 31/10/2099\nLOCAÇÃO: 30/10/2099 a 02/11/2099 (retirada → devolução)' },
+        { id_ped: 7002, id_pedido: 4, nome_cliente: 'João', status_pedido: 'Cancelado', obs_pedido: 'LOCAÇÃO: 30/10/2099 a 02/11/2099' },
+        { id_ped: 7003, id_pedido: 5, nome_cliente: 'Ana', status_pedido: 'Em Aberto', obs_pedido: 'sem período' },
+        { id_ped: 7004, id_pedido: 6, nome_cliente: 'Bia', status_pedido: 'Em Aberto', obs_pedido: 'LOCAÇÃO: 01/10/2000 a 03/10/2000' },
+      ] })
+    }
+    const mpp = url.match(/\/pedidos\/(\d+)\/produtos/)
+    if (mpp) return ok({ status: 'success', data: mpp[1] === '7001' ? [{ id_produto: 11, qtde_produto: '50.00' }, { id_produto: 22, qtde_produto: '30' }] : [{ id_produto: 11, qtde_produto: '999' }] })
     if (url.includes('/produtos?cod_produto=')) {
       const cod = decodeURIComponent(url.split('cod_produto=')[1])
       return ok({ status: 'success', data: [{ id_produto: cod === 'LOU-001' ? 11 : 22, cod_produto: cod }] })
@@ -97,7 +113,8 @@ globalThis.fetch = (async (input: any, init: any = {}) => {
     const nenhum = (o: string) => new Response(`{"status":"error","data":"Nenhum ${o} encontrado"}`, { status: 403 })
     if (url.endsWith('/orcamentos') && method === 'POST') {
       const n = vhsysOrcamentos.length
-      const o = { id_orcamento: 900 + n, id_pedido: 123 + n, id_cliente: body.id_cliente, obs_interno_pedido: body.obs_interno_pedido }
+      // como o VHSYS real: o total começa no valor mandado na criação e soma cada produto adicionado (teste de 25/10: deu R$ 350 num pedido de R$ 175)
+      const o = { id_orcamento: 900 + n, id_pedido: 123 + n, id_cliente: body.id_cliente, obs_interno_pedido: body.obs_interno_pedido, total: Number(body.valor_total_produtos || 0) }
       vhsysOrcamentos.push(o)
       return criarResponde === 'ok' ? ok({ status: 'success', data: o }) : ok({ code: '404', status: 'error', data: 'Erro ao comunicar com a API' })
     }
@@ -108,7 +125,11 @@ globalThis.fetch = (async (input: any, init: any = {}) => {
     }
     const mp = url.match(/\/orcamentos\/(\d+)\/produtos$/)
     if (mp && method === 'GET') return orcProdutos[mp[1]]?.length ? ok({ status: 'success', data: orcProdutos[mp[1]] }) : nenhum('produto')
-    if (mp && method === 'POST') { (orcProdutos[mp[1]] ||= []).push(body); return ok({ status: 'success', data: body }) }
+    if (mp && method === 'POST') {
+      (orcProdutos[mp[1]] ||= []).push(body)
+      const o = vhsysOrcamentos.find(x => String(x.id_orcamento) === mp[1]); if (o) o.total += Number(body.valor_total_produto || 0)
+      return ok({ status: 'success', data: body })
+    }
     throw new Error('VHSYS mock sem rota: ' + method + ' ' + url)
   }
   throw new Error('rede no teste: ' + url)
@@ -131,7 +152,7 @@ async function main() {
   eq('ensaio: ok', [e.ok, e.ensaio, e.erro], [true, true, undefined])
   eq('ensaio: cliente novo planejado com CPF formatado', [e.cliente?.novo, e.cliente?.payload?.cnpj_cliente], [true, '123.456.789-09'])
   eq('ensaio: 2 produtos com id do VHSYS', e.orcamento?.produtos.map(p => `${p.id_produto}:${p.qtde_produto}:${p.valor_unit_produto}`), ['11:30:3.50', '22:30:1.20'])
-  eq('ensaio: total do orçamento', e.orcamento?.payload.valor_total_produtos, '141.00')
+  eq('ensaio: total do pedido', e.orcamento?.total, 141)
   eq('ensaio: data do evento lida do fieldValueDate', /31\/10\/2026/.test(String(e.orcamento?.payload.obs_pedido)), true)
   eq('ensaio: nada foi gravado', posts.length, 0)
 
@@ -140,6 +161,7 @@ async function main() {
   const g = await sincronizarPedido('C1', 'O1', true)
   eq('gravar: ok', [g.ok, g.erro], [true, undefined])
   eq('gravar: VHSYS recebeu cliente, orçamento e 2 produtos', vhsysPosts().map(p => p.url.replace('https://api.vhsys.com/v2', '')), ['/clientes', '/orcamentos', '/orcamentos/900/produtos', '/orcamentos/900/produtos'])
+  eq('gravar: total do orçamento no VHSYS = soma dos produtos (não dobra)', vhsysOrcamentos[0]?.total, 141)
   eq('gravar: orçamento ligado ao cliente criado', posts.find(p => p.url.endsWith('/orcamentos'))?.body.id_cliente, '500')
   eq('gravar: nº do orçamento no card e oportunidade ganha', [oportunidade.customFields.find((f: any) => f.id === CAMPO_ORC)?.fieldValue, oportunidade.status], ['123', 'won'])
   eq('gravar: id do cliente no contato', posts.find(p => p.url.endsWith('/contacts/C1') && p.body.customFields)?.body.customFields[0].field_value, '500')
@@ -175,6 +197,15 @@ async function main() {
   const rt = await sincronizarPedido('C1', 'O1', true)
   eq('retentar: usa o orçamento nº 2', [rt.ok, rt.orcamento?.numero], [true, '2'])
   eq('retentar: nenhum orçamento novo e só o produto que faltava', [vhsysOrcamentos.length, orcProdutos['900'].map((p: any) => String(p.id_produto))], [1, ['11', '22']])
+
+  // Agenda de reservas: lê pedidos do VHSYS
+  const { montarAgenda } = await import('../lib/agenda')
+  db.clear()
+  const ag = await montarAgenda('2099-10-31')
+  const linha = (c: string) => ag.itens.find(i => i.codigo === c)
+  eq('agenda: pedido em aberto com LOCAÇÃO reserva os itens', [linha('LOU-001')?.reservado, linha('LOU-001')?.livre, linha('TAL-009')?.livre], [50, 250, 170])
+  eq('agenda: cancelado e já devolvido não reservam; sem período fica para conferir', [ag.reservas, ag.semPeriodo], [1, ['5']])
+  eq('agenda: fora do período não ocupa', (await montarAgenda('2099-11-10')).itens.length, 0)
 
   // 7. Sem CPF: não envia, marca erro para a Karol ver
   reset(null)

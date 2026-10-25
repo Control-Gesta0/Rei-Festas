@@ -16,6 +16,7 @@
  */
 import type { ItemCatalogo } from './crm-map-types'
 import { reais } from './catalogo'
+import { linhaPeriodo, periodoPadrao } from './locacao'
 
 // ---------- Funções puras ----------
 
@@ -56,13 +57,20 @@ export function documento(raw: unknown): { tipo: 'PF' | 'PJ'; digitos: string; f
   return null
 }
 
-/** Data de campo DATE do GHL (ISO, "AAAA-MM-DD" ou epoch ms) → "dd/mm/aaaa". */
-export function dataBR(v: unknown): string {
+/** Data de campo DATE do GHL (ISO, "AAAA-MM-DD" ou epoch ms) → "AAAA-MM-DD" ('' se não der). */
+export function dataIso(v: unknown): string {
   if (v == null || v === '') return ''
   const n = typeof v === 'number' ? v : /^\d{10,}$/.test(String(v)) ? Number(v) : NaN
   const iso = Number.isFinite(n) ? new Date(n).toISOString().slice(0, 10) : String(v).slice(0, 10)
-  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-  return m ? `${m[3]}/${m[2]}/${m[1]}` : String(v)
+  return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso : ''
+}
+
+/** Data de campo DATE do GHL → "dd/mm/aaaa". */
+export function dataBR(v: unknown): string {
+  const iso = dataIso(v)
+  if (!iso) return v == null ? '' : String(v)
+  const [a, m, d] = iso.split('-')
+  return `${d}/${m}/${a}`
 }
 
 export interface DadosPedido {
@@ -102,7 +110,10 @@ export function payloadCliente(d: DadosPedido, doc: NonNullable<ReturnType<typeo
 
 /** Observação do orçamento: o que a Karol precisa para lançar a locação sem abrir o GHL. */
 export function obsOrcamento(d: DadosPedido, semCodigo: string[]): string {
+  const evento = dataIso(d.dataEvento)
   const linhas = [
+    // Período da locação (lido pela agenda de reservas, lib/locacao.ts). A Karol ajusta se combinar outra data
+    evento ? `${linhaPeriodo(periodoPadrao(evento))} (${d.entregaRetirada === 'Entrega' ? 'entrega → recolha' : 'retirada → devolução'}; ajuste se combinar outra data)` : '',
     d.dataEvento ? `Data do evento: ${dataBR(d.dataEvento)}` : '',
     d.entregaRetirada ? `Entrega ou retirada: ${d.entregaRetirada}` : '',
     d.entregaRetirada === 'Entrega' && d.enderecoEvento ? `Endereço do evento: ${d.enderecoEvento}` : '',

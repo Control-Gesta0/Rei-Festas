@@ -190,6 +190,7 @@ evidência em `docs/cliente/diagnostico.md` §7.1 e §7.2.
 | D17 | Os lembretes de saldo, véspera e devolução (D13) **continuam no GHL**, disparados pelos campos de data do card | mestre, 25/10 |
 | D18 | Card em Pedido fechado → **cliente e orçamento** criados no VHSYS (`agente-ia/lib/erp-sync.ts`). Atualiza D4: o gatilho deixa de ser "Ganho" e passa a ser "Pedido fechado"; a integração marca a oportunidade como Ganho | mestre, 25/10 |
 | D19 | A etapa onde a IA entrega o pedido passa a se chamar **"Pronto para orçamento"** (era "Pedido completo", mesmo id): o nome diz o que a Karol faz com o card | mestre, 25/10 |
+| D20 | **Locação sem o app Locações do VHSYS** (ele obriga a redigitar todos os itens e não tem API). O pedido de locação é o **pedido do VHSYS** gerado do orçamento da integração; financeiro e recebimento seguem no VHSYS. A disponibilidade sai de uma **agenda de reservas nossa** que lê os pedidos | mestre, 25/10 |
 
 - O orçamento leva os itens com código do catálogo (o `cod_produto` da carga de 209
   itens), quantidade e preço da linha do card (ou o da tabela). Item sem código vai na
@@ -199,6 +200,21 @@ evidência em `docs/cliente/diagnostico.md` §7.1 e §7.2.
 - O app Locações não tem API: a Karol lança a locação a partir do orçamento.
 - Pendência: conferir os nomes dos campos do orçamento na API v2 no primeiro envio real
   (a documentação não abriu no ambiente da implantação). Começa em `ERP_MODO` ensaio.
+
+### D20: como a locação é controlada sem o app Locações
+
+- O orçamento da integração sai com a linha **`LOCAÇÃO: dd/mm/aaaa a dd/mm/aaaa`** na
+  observação (retirada ou entrega → devolução ou recolha), calculada pelas regras da loja:
+  último dia útil antes do evento → primeiro dia útil depois (fim de semana = sexta a
+  segunda; sem devolução no sábado). Feriado não entra: a Karol ajusta a linha.
+- Pagou o sinal, a Karol gera o **pedido** a partir do orçamento (um clique).
+- **Agenda de reservas** (`GET /api/agenda`): lê os pedidos não cancelados com a linha
+  LOCAÇÃO e calcula, por item e por data, total do estoque, pico reservado e livre.
+  Orçamento não reserva; só pedido.
+- Fases seguintes: contrato em PDF a partir do pedido; IA consultando a agenda.
+- Pendências: (1) pedido de venda no VHSYS baixa estoque? testar gerar sem movimentar;
+  (2) nomes dos campos de pedido na API (conferir com `?bruto=1`); (3) nota fiscal na
+  locação (contador); (4) modelo de contrato (app ou o do Acercom).
 
 ## Plano de contas aplicado no VHSYS (24/10/2026)
 
