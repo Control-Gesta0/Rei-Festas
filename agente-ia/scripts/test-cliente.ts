@@ -6,7 +6,7 @@
 type Eq = (nome: string, got: unknown, want: unknown) => void
 
 export default async function testesCliente(eq: Eq): Promise<number> {
-  const { checkReply, comCumprimento, comEquipeConfirma } = await import('../lib/guards')
+  const { checkReply, comCumprimento, comEquipeConfirma, semTravessao } = await import('../lib/guards')
   const regras = (t: string) => [...new Set(checkReply(t).map(v => v.regra))]
 
   // ---------- Travas de texto ----------
@@ -36,6 +36,7 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   eq('rey: "perfeito" no meio passa', regras('Fica perfeito pra mesa de doces 😉'), [])
   eq('rey: fala real da loja passa', regras('Olá, bom dia! Tudo bem? Essa é a nossa bege adamascada 😉'), [])
 
+  eq('travessão entre datas vira "a"', semTravessao('Evento nos dias 7–8/11 — anotado.'), 'Evento nos dias 7 a 8/11, anotado.')
   eq('equipe confirma entra antes da pergunta', comEquipeConfirma('A mesa sai R$ 13,00 cada. Quantas você precisa?'), 'A mesa sai R$ 13,00 cada. Nossa equipe confere a disponibilidade e confirma o valor final. Quantas você precisa?')
   eq('equipe confirma sem pergunta vai no fim', comEquipeConfirma('A mesa sai R$ 13,00 cada.'), 'A mesa sai R$ 13,00 cada. Nossa equipe confere a disponibilidade e confirma o valor final.')
   eq('cumprimento entra na primeira mensagem', comCumprimento('Funciona assim...', 14), 'Olá, boa tarde! Tudo bem? Aqui é a assistente virtual da Rey Festas 😊 Funciona assim...')
@@ -175,6 +176,12 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   const perT = { inicio: '2026-11-19', fim: '2026-11-23' }
   const disp = (livre: number | null) => loc.textoDisponibilidade([{ codigo: 'COP-006', nome: 'Taça Vinho', quantidade: 80, livre }], perT, '2026-11-20')
   {
+    const { textoSeguroDoPedido } = await import('../lib/tools')
+    const { CRM_MAP: MAPA } = await import('../lib/crm-map')
+    const porta = MAPA.portas[0]
+    eq('texto seguro: sem itens fica o padrão', textoSeguroDoPedido(porta, { respostas: {} } as never, 'PADRAO'), 'PADRAO')
+    eq('texto seguro: repete o pedido e pergunta o próximo', textoSeguroDoPedido(porta, { respostas: { itens: '10 × Jogo de Mesa', valorTabela: 'R$ 200,00', dataEvento: '2026-11-07' } } as never, 'PADRAO'),
+      'Anotei aqui: 10 × Jogo de Mesa. Total de tabela R$ 200,00, sem frete. Nossa equipe confere a disponibilidade e confirma o valor final. Vai ser com entrega no local ou você retira aqui na loja?')
     const { quantidadeDita } = await import('../lib/tools')
     eq('quantidade: "algumas mesas" não vale', quantidadeDita('algumas mesas e cadeiras', 1, 'preciso locar algumas mesas e cadeiras'), false)
     eq('quantidade: número na evidência vale', quantidadeDita('80 taças', 80, 'quero 80 taças'), true)

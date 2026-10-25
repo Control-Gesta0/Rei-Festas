@@ -558,7 +558,9 @@ export async function runTool(ctx: ToolCtx, name: string, input: Record<string, 
         }), periodo, d.iso)
         // Só libera falar de "agenda"/"livre" se a agenda tinha o estoque de algum item
         if (r.conhecidos) await port.patchState({ agendaConsultada: { data: d.iso, ok: r.ok, em: Date.now() } })
-        return ok(r.texto)
+        // A pessoa disse quantos quer e o pedido ainda não foi gravado: a soma vem junto
+        const gravado = !!(await port.getState()).respostas?.[cat.campoItens]
+        return ok(gravado ? r.texto : `${r.texto}\nO pedido ainda não foi gravado: chame calcular_tabela com esses itens e quantidades antes de responder.`)
       }
 
       case 'calcular_tabela': {
@@ -634,4 +636,22 @@ const NUMERO_ESCRITO = /\b(um|uma|dois|duas|tr[eê]s|quatro|cinco|seis|sete|oito
 export function quantidadeDita(evidencia: string, quantidade: number, leadText: string): boolean {
   if (/\d/.test(evidencia) || NUMERO_ESCRITO.test(evidencia)) return true
   return Number.isFinite(quantidade) && new RegExp(`(^|\\D)${quantidade}(\\D|$)`).test(leadText)
+}
+
+/**
+ * Texto seguro com o que já está gravado (quando a resposta do modelo foi barrada duas vezes):
+ * repete o pedido anotado e faz a próxima pergunta do roteiro. Nunca pergunta de novo o que já foi dito.
+ */
+export function textoSeguroDoPedido(porta: Porta, state: LeadState, padrao: string): string {
+  const cat = CRM_MAP.catalogo
+  const r = state.respostas || {}
+  const itens = cat ? String(r[cat.campoItens] || '') : ''
+  const valor = cat?.campoValor ? String(r[cat.campoValor] || '') : ''
+  const prox = snapshot(porta, state).abertos.find(c => c.key !== cat?.campoItens && c.pergunta)
+  if (!itens) return padrao
+  return [
+    `Anotei aqui: ${itens.split(/;\s*/).join(', ')}.`,
+    valor ? `Total de tabela ${valor}, sem frete. Nossa equipe confere a disponibilidade e confirma o valor final.` : 'Nossa equipe confere a disponibilidade e confirma o valor final.',
+    prox?.pergunta || '',
+  ].filter(Boolean).join(' ')
 }

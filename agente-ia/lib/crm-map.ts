@@ -244,6 +244,8 @@ export const CRM_MAP = {
       pediu_humano: { re: /rob[oô]|\bbot\b|\bia\b|intelig[eê]ncia artificial|m[aá]quina|autom[aá]tic/i, salvo: /quero falar|falar com|me (passa|transfere)|chama (a|o|algu)/i, msg: 'perguntar se é robô não é pedir humano. Responda que é a assistente virtual da Rey Festas e siga montando o pedido' },
       // perguntar se a loja aluga um item (mesmo que não alugue) é atendimento de locação
       fora_do_escopo: { re: /\b(?:alug|loca[cç]|voc[eê]s (?:t[eê]m|tem|trabalham))/i, msg: 'pergunta sobre item para alugar é do atendimento. Se a loja não aluga, diga que não tem e NÃO finalize' },
+      // "se eu retirar sábado posso devolver domingo?" é dúvida de quem VAI alugar, não pedido já feito
+      ja_e_cliente: { re: /\bse eu\b|\bposso (?:retirar|devolver|buscar|pegar)\b|como funciona|at[eé] que horas|qual (?:o )?hor[aá]rio/i, salvo: /meu pedido|j[aá] (?:fechei|reservei|paguei|aluguei|loquei|fiz)|aluguei|loquei|paguei|comprovante|quebr|manchad|faltou|faltando/i, msg: 'pergunta sobre como funciona a retirada ou a devolução é dúvida de quem vai alugar. Responda a regra e siga montando o pedido; NÃO finalize' },
     } as Record<string, { re: RegExp; salvo?: RegExp; msg: string }>,
   },
 

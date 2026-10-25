@@ -119,3 +119,8 @@ export function comEquipeConfirma(text: string): string {
   if (frases.length > 1 && ultima.includes('?')) return [...frases.slice(0, -1), frase, ultima].join(' ')
   return `${text.trim()} ${frase}`
 }
+
+/** Travessão vira "a" entre números (7–8/11 → 7 a 8/11) e vírgula no resto. */
+export function semTravessao(text: string): string {
+  return text.replace(/(\d)\s*[—–]\s*(\d)/g, '$1 a $2').replace(/\s*[—–]\s*/g, ', ').replace(/,\s*([.!?])/g, '$1')
+}
