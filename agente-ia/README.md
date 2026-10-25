@@ -52,8 +52,9 @@ orçamento (um clique). O orçamento já sai com a linha `LOCAÇÃO: dd/mm/aaaa 
 intervalo), livre e os pedidos que ocupam; mais `devolucoesPendentes` (período vencido sem "atendido") e
 `hoje` (pedidos que saem e voltam hoje). `&bruto=1` mostra os campos como o VHSYS devolve.
 
-Modelo A: o estoque do VHSYS é o patrimônio. No pedido de locação: **Lançar contas** sim, **Lançar
-estoque** nunca, **Alterar status → atendido** na devolução; perda vira ajuste de estoque.
+Modelo A: o estoque do VHSYS é o patrimônio. No pedido de locação: **Lançar contas** sim (categoria
+receita de locação), **Lançar estoque** nunca, **Emitir nota fiscal / NFC-e** nunca (é nota de venda),
+**Alterar status → atendido** na devolução; perda vira ajuste de estoque.
 
 `ERP_MODO=gravar` grava no VHSYS; sem isso é **ensaio** (lê e mostra o plano). Conferência manual,
 sempre em ensaio: `GET /api/erp?secret=…&contact_id=…`.

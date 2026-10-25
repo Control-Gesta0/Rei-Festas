@@ -222,11 +222,23 @@ evidência em `docs/cliente/diagnostico.md` §7.1 e §7.2.
   Na locação:
   - **Lançar contas**: sim (sinal e saldo entram em contas a receber);
   - **Lançar estoque**: **nunca** (a agenda bloqueia pelo período; lançar contaria duas vezes);
+  - **Emitir nota fiscal / Emitir NFC-e**: **nunca** (emitem nota de VENDA; locação de bem
+    móvel não é venda nem serviço);
   - **Alterar status → atendido**: marca a devolução (libera o material na agenda na hora);
   - item perdido ou quebrado: ajuste de estoque só da quantidade perdida + cobrança pelo
     valor de reposição.
   - Não usar Compras → Entrada de Mercadoria para devolução: exige fornecedor, mexe no
     custo médio, tem pagamento e polui compras e DRE.
+- **Fiscal (25/10/2026, a confirmar com o contador)**: locação de bens móveis não é venda
+  (sem ICMS, não muda a propriedade) nem serviço (STF, Súmula Vinculante 31: sem ISS; item
+  vetado da LC 116/2003). O documento costuma ser a **fatura de locação** (o modelo do
+  Acercom já tinha). No Simples, a receita de locação de bens móveis vai no Anexo III sem a
+  parcela do ISS. Têm nota própria: frete e montagem (serviço; frete terceirizado é a
+  transportadora que emite), buffet, decoração e cerimonial (NFS-e), material vendido de
+  fato (NF de venda). No **Lançar contas**, usar a categoria de **receita de locação** do
+  plano de contas, não de venda. Perguntas ao contador: (1) Atibaia exige NFS-e na locação
+  mesmo sem ISS, ou basta a fatura? (2) precisa NF-e de remessa para o material sair e
+  voltar? (3) frete cobrado na fatura da Rey Festas pede nota? (4) enquadramento no Simples.
 - **Devolução pendente**: período da linha LOCAÇÃO vencido e o pedido não marcado como
   atendido. O material continua ocupando a agenda até hoje e o pedido aparece na lista
   `devolucoesPendentes` de `/api/agenda` (o "Devolução" do Acercom).
