@@ -65,8 +65,9 @@ export async function processContact(contactId: string, webhookId: string): Prom
       const bloco = blocoAtual(history)
       const textoTurno = bloco.map(m => m.text).join('\n')
 
-      // Reset de teste (só contatos em TEST_CONTACT_IDS)
-      if (isResetCommand(contactId, textoTurno.trim())) {
+      // Reset de teste (só contatos em TEST_CONTACT_IDS). Vale a ÚLTIMA mensagem: com a IA
+      // travada (humano recente), o bloco junta tudo o que ficou sem resposta
+      if (isResetCommand(contactId, target.text.trim())) {
         await resetContact(contactId)
         await sendReply(contactId, 'Teste reiniciado. Mande a primeira mensagem como se fosse um lead novo.', conv.instancia)
         await markAnswered(contactId, target.id)
