@@ -212,9 +212,19 @@ evidência em `docs/cliente/diagnostico.md` §7.1 e §7.2.
   LOCAÇÃO e calcula, por item e por data, total do estoque, pico reservado e livre.
   Orçamento não reserva; só pedido.
 - Fases seguintes: contrato em PDF a partir do pedido; IA consultando a agenda.
-- Pendências: (1) pedido de venda no VHSYS baixa estoque? testar gerar sem movimentar;
-  (2) nomes dos campos de pedido na API (conferir com `?bruto=1`); (3) nota fiscal na
-  locação (contador); (4) modelo de contrato (app ou o do Acercom).
+- **Estoque = patrimônio da loja** (testado em 25/10/2026): o pedido do VHSYS não mexe
+  no estoque nem no financeiro sozinho; cada um tem uma ação própria no menu do pedido.
+  Na locação:
+  - **Lançar contas**: sim (sinal e saldo entram em contas a receber);
+  - **Lançar estoque**: **nunca** (a agenda bloqueia pelo período; lançar contaria duas vezes);
+  - **Alterar status**: marca a devolução;
+  - item perdido ou quebrado: ajuste de estoque só da quantidade perdida + cobrança pelo
+    valor de reposição.
+  - Não usar Compras → Entrada de Mercadoria para devolução: exige fornecedor, mexe no
+    custo médio, tem pagamento e polui compras e DRE.
+- Pendências: (1) conferir que gerar o pedido a partir do orçamento não lança estoque
+  sozinho; (2) nomes dos campos de pedido na API (conferir com `?bruto=1`); (3) nota fiscal
+  na locação (contador); (4) modelo de contrato (app ou o do Acercom).
 
 ## Plano de contas aplicado no VHSYS (24/10/2026)
 
