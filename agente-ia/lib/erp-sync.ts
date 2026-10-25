@@ -182,6 +182,9 @@ export async function sincronizarPedido(contactId: string, opportunityId: string
  * o id guardado no Redis, a marca da oportunidade na observação interna e, se o VHSYS responder
  * erro ao criar (ele cria mesmo assim; visto em 25/10/2026), o orçamento que surgiu na lista do cliente.
  */
+/** Esperas antes de cada nova leitura da lista (ms). Exportado para o teste trocar por zeros. */
+export const ESPERAS_ORCAMENTO_MS = [0, 2000, 4000, 8000, 15000]
+
 async function garantirOrcamento(idCliente: string, oppId: string, payload: Record<string, unknown>): Promise<VhsysOrcamento> {
   const chave = k('erp-orc', oppId)
   const antes = await orcamentosDoCliente(idCliente)
@@ -192,10 +195,18 @@ async function garantirOrcamento(idCliente: string, oppId: string, payload: Reco
   try {
     orc = await criarOrcamento(payload)
   } catch (e) {
+    // O orçamento pode demorar a aparecer na lista (2º teste real, 25/10/2026: erro e nada na lista na hora).
+    // Procura algumas vezes pela marca da oportunidade; sem marca, aceita um único orçamento novo.
     const idsAntes = new Set(antes.map(o => o.id))
-    const novos = (await orcamentosDoCliente(idCliente)).filter(o => !idsAntes.has(o.id))
-    if (novos.length !== 1) throw e
-    orc = novos[0]
+    let achado: VhsysOrcamento | undefined
+    for (const espera of ESPERAS_ORCAMENTO_MS) {
+      if (espera) await new Promise(res => setTimeout(res, espera))
+      const novos = (await orcamentosDoCliente(idCliente)).filter(o => !idsAntes.has(o.id))
+      achado = novos.find(o => o.obsInterna.includes(oppId)) || (novos.length === 1 ? novos[0] : undefined)
+      if (achado) break
+    }
+    if (!achado) throw e
+    orc = achado
   }
   await redis.set(chave, orc.id, { ex: 180 * 86400 })
   return orc
