@@ -145,10 +145,10 @@ export const CRM_MAP = {
       sinais: /$^/,
       roteiro: [
         'itens', 'dataEvento', 'entregaRetirada', 'enderecoEvento', 'horarioEvento', 'contatoLocal',
-        'tipoEvento', 'convidados',
         'cadastroErp', 'nomeCompleto', 'cpfCnpj', 'rg', 'email', 'enderecoResidencial',
       ],
-      extras: ['cidadeEvento', 'formaPagamento', 'motivoPerda', 'perfil'],
+      // tipo de evento e convidados: só grava se a pessoa contar (as conversas reais quase nunca perguntam)
+      extras: ['tipoEvento', 'convidados', 'cidadeEvento', 'formaPagamento', 'motivoPerda', 'perfil'],
       obrigatorios: [
         'itens', 'dataEvento', 'entregaRetirada', 'enderecoEvento',
         'cadastroErp', 'nomeCompleto', 'cpfCnpj', 'rg', 'email', 'enderecoResidencial',
