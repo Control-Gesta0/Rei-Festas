@@ -170,6 +170,23 @@ export async function findOpportunity(contactId: string, pipelineId: string, eta
   return abertas[0] || list[0] || null
 }
 
+export interface GhlOpportunityFull extends GhlOpportunity { createdAt?: string; updatedAt?: string; lastStatusChangeAt?: string; contact?: { name?: string } }
+
+/** Todas as oportunidades de um funil (paginado pelo cursor do GHL; teto de páginas para o painel). */
+export async function listOpportunities(pipelineId: string, maxPaginas = 20): Promise<GhlOpportunityFull[]> {
+  const out: GhlOpportunityFull[] = []
+  let cursor = ''
+  for (let p = 0; p < maxPaginas; p++) {
+    const q = `location_id=${loc()}&pipeline_id=${encodeURIComponent(pipelineId)}&limit=100${cursor}`
+    const r = await ghl<{ opportunities?: GhlOpportunityFull[]; meta?: { startAfter?: number | string; startAfterId?: string; nextPageUrl?: string | null } }>('GET', `/opportunities/search?${q}`)
+    const pg = r.opportunities || []
+    out.push(...pg)
+    if (pg.length < 100 || !r.meta?.startAfterId) break
+    cursor = `&startAfter=${encodeURIComponent(String(r.meta.startAfter ?? ''))}&startAfterId=${encodeURIComponent(r.meta.startAfterId)}`
+  }
+  return out
+}
+
 export async function createOpportunity(contactId: string, pipelineId: string, stageId: string, name: string): Promise<GhlOpportunity> {
   const r = await ghl<{ opportunity: GhlOpportunity }>('POST', '/opportunities/', {
     locationId: CONFIG.ghlLocationId, pipelineId, pipelineStageId: stageId, contactId, name, status: 'open',

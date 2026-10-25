@@ -44,6 +44,8 @@ export interface ExecEntry {
   usage?: Usage
   custoUsd?: number | null
   urgente?: boolean
+  /** motivo da finalização (qualificado, urgente, outro_servico...), para o painel */
+  motivo?: string
   detalhe?: string
 }
 

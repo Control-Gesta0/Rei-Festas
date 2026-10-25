@@ -219,6 +219,20 @@ evidência em `docs/cliente/diagnostico.md` §7.1 e §7.2.
   Travas em código: falar de "agenda"/"livres" sem ter consultado é reescrito; pergunta de
   disponibilidade com data cobra a consulta uma vez. Evals: 18/18.
 - Próxima fase: contrato e fatura de locação em PDF a partir do pedido.
+
+### D21: painel de gestão (25/10/2026)
+
+Página `/api/painel` no app da Vercel (decisão do mestre), com senha própria
+(`PAINEL_SENHA`, cookie de 30 dias), separada do secret dos webhooks. Lê ao vivo, cada
+fonte isolada (uma fora do ar não derruba as outras):
+- **IA** (diário no Redis): contatos atendidos, respostas, enviados à Karol (pedido
+  completo + urgente), como a IA encerrou (por motivo), contatos por dia, custo, erros e
+  envios ao VHSYS (ok/erro);
+- **Funil** (GHL): cards abertos por etapa com valor, novos, fechados e perdidos no
+  período, motivo da perda e conversão;
+- **Locação** (agenda do VHSYS): saem e voltam hoje, devoluções pendentes, locações dos
+  próximos 7 dias e itens mais reservados com o que sobra livre.
+Período: 7, 30 ou 90 dias.
 - **Estoque = patrimônio da loja** (testado em 25/10/2026): o pedido do VHSYS não mexe
   no estoque nem no financeiro sozinho; cada um tem uma ação própria no menu do pedido.
   Gerar o pedido a partir do orçamento **não** lança estoque. "Lançar estoque" e "Estornar

@@ -92,6 +92,7 @@ Obrigatórias: `GHL_TOKEN` · `GHL_LOCATION_ID` · `OPENAI_API_KEY` · `UPSTASH_
 Operação: `CLIENT_NAME` (Rey Festas) · `GATE_TAG` (ia-ativa) · `HUMAN_TAG` (atendimento-humano) · `REDIS_PREFIX` (agente-reyfestas:) · `TEST_CONTACT_IDS`
 Opcionais: `LLM_MODEL` · `VISION_MODEL` · `STT_MODEL` · `TIMEZONE` · `DEBOUNCE_SECONDS` · `GHL_CHANNEL` (`SMS` na Rey Festas: a ponte ZaptosWPP entra como provedor de SMS)
 ERP: `VHSYS_ACCESS_TOKEN` · `VHSYS_SECRET_ACCESS_TOKEN` · `ERP_MODO` (`gravar` para valer)
+Painel: `PAINEL_SENHA` (senha própria do painel, diferente do `WEBHOOK_SECRET`)
 
 Local: os scripts leem `agente-ia/.env.local` e o `.env` da raiz do repositório. Env da Vercel só vale em deploy novo.
 
@@ -120,6 +121,7 @@ Local: os scripts leem `agente-ia/.env.local` e o `.env` da raiz do repositório
 | `POST /api/erp?secret=…` | webhook do workflow "Pedido fechado": cliente e orçamento no VHSYS |
 | `GET /api/erp?secret=…&contact_id=…` | ensaio da sincronização com o VHSYS (não grava) |
 | `GET /api/agenda?secret=…&data=dd/mm/aaaa` | agenda de reservas: quanto de cada item está livre na data |
+| `GET /api/painel` | **painel de gestão** (login com `PAINEL_SENHA`): IA, funil do GHL e locação; `?dias=30`, `?formato=json` |
 
 ## Fora desta versão
 
