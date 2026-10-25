@@ -33,7 +33,9 @@ let vhsysClientes: any[] = []
 let vhsysOrcamentos: any[] = []
 let orcProdutos: Record<string, any[]> = {}
 /** 'erro': o VHSYS cria o orçamento e mesmo assim responde status error (visto no teste real) */
-let criarResponde: 'ok' | 'erro' = 'ok'
+let criarResponde: 'ok' | 'erro' | 'erro-atrasado' = 'ok'
+/** 'erro-atrasado': o orçamento criado só aparece na lista depois de N leituras */
+let ocultarNaLista = 0
 const posts: Array<{ url: string; body: any }> = []
 const notas: string[] = []
 let tags: string[] = []
@@ -52,7 +54,7 @@ function reset(cpf: string | null) {
       { id: 'do2qOzlfkZZfvZauMNBv', fieldValueString: 'Retirada na loja' },
     ],
   }
-  posts.length = 0; notas.length = 0; tags = []; vhsysClientes = []; vhsysOrcamentos = []; orcProdutos = {}; criarResponde = 'ok'; db.clear()
+  posts.length = 0; notas.length = 0; tags = []; vhsysClientes = []; vhsysOrcamentos = []; orcProdutos = {}; criarResponde = 'ok'; ocultarNaLista = 0; db.clear()
 }
 
 globalThis.fetch = (async (input: any, init: any = {}) => {
@@ -117,11 +119,13 @@ globalThis.fetch = (async (input: any, init: any = {}) => {
       // como o VHSYS real: o total começa no valor mandado na criação e soma cada produto adicionado (teste de 25/10: deu R$ 350 num pedido de R$ 175)
       const o = { id_orcamento: 900 + n, id_pedido: 123 + n, id_cliente: body.id_cliente, obs_interno_pedido: body.obs_interno_pedido, total: Number(body.valor_total_produtos || 0) }
       vhsysOrcamentos.push(o)
+      if (criarResponde === 'erro-atrasado') ocultarNaLista = 2
       return criarResponde === 'ok' ? ok({ status: 'success', data: o }) : ok({ code: '404', status: 'error', data: 'Erro ao comunicar com a API' })
     }
     if (url.includes('/orcamentos?id_cliente=')) {
       const id = decodeURIComponent(url.split('id_cliente=')[1].split('&')[0])
-      const l = vhsysOrcamentos.filter(o => String(o.id_cliente) === id)
+      let l = vhsysOrcamentos.filter(o => String(o.id_cliente) === id)
+      if (ocultarNaLista > 0) { ocultarNaLista--; l = l.slice(0, -1) }
       return l.length ? ok({ status: 'success', data: l }) : nenhum('orçamento')
     }
     const mp = url.match(/\/orcamentos\/(\d+)\/produtos$/)
@@ -144,7 +148,8 @@ const eq = (nome: string, got: unknown, want: unknown) => {
 }
 
 async function main() {
-  const { sincronizarPedido } = await import('../lib/erp-sync')
+  const { sincronizarPedido, ESPERAS_ORCAMENTO_MS } = await import('../lib/erp-sync')
+  ESPERAS_ORCAMENTO_MS.fill(0)
   const vhsysPosts = () => posts.filter(p => p.url.includes('vhsys'))
 
   // 1. Ensaio: lê e planeja, não grava nada em lugar nenhum
@@ -187,6 +192,13 @@ async function main() {
   const ce = await sincronizarPedido('C1', 'O1', true)
   eq('erro ao criar: recupera o orçamento criado e conclui', [ce.ok, ce.erro, ce.orcamento?.numero], [true, undefined, '123'])
   eq('erro ao criar: um orçamento só, com os 2 produtos', [vhsysOrcamentos.length, (orcProdutos['900'] || []).length], [1, 2])
+
+  // 5b. Erro ao criar e o orçamento só aparece na lista depois (2º teste real de 25/10): espera e acha
+  reset('123.456.789-09')
+  criarResponde = 'erro-atrasado'
+  const ca = await sincronizarPedido('C1', 'O1', true)
+  eq('erro ao criar, lista atrasada: acha o orçamento e conclui', [ca.ok, ca.erro, ca.orcamento?.numero], [true, undefined, '123'])
+  eq('erro ao criar, lista atrasada: um orçamento só', vhsysOrcamentos.length, 1)
 
   // 6. Retentar depois de falha parcial (sem o nº no card): completa, não duplica
   reset('123.456.789-09')
