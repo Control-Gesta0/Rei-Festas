@@ -27,6 +27,9 @@
     },
     "api/agenda.ts": {
       "maxDuration": 120
+    },
+    "api/painel.ts": {
+      "maxDuration": 60
     }
   }
 }

@@ -17,6 +17,8 @@ export interface LeadState {
   aguardandoResumo?: boolean
   respondenteNome?: string
   respondenteRelacao?: string
+  /** última consulta à agenda de reservas (consultar_disponibilidade): libera falar de "livre" e "agenda" */
+  agendaConsultada?: { data: string; ok: boolean; em: number }
   /** respostas do roteiro, por chave do campo (espelho do que foi gravado no CRM) */
   respostas?: Record<string, string>
   /** campos que o lead disse não saber */

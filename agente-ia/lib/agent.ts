@@ -141,8 +141,9 @@ export async function processContact(contactId: string, webhookId: string): Prom
           if (!podeMover(await port.getLead(), CRM_MAP.etapaEmContatoId)) await port.moveStage(CRM_MAP.etapaEmContatoId)
         } catch (e) { console.warn(`[agente] ${contactId}: não moveu para Em Contato:`, e) }
       }
+      const motivo = reply.handoff ? (await getState(contactId)).finalizado?.motivo : undefined
       await logExec({
-        tipo: reply.handoff ? 'finalizou' : 'resposta', leadId: contactId, nome, porta: porta.id, ms: Date.now() - t0,
+        tipo: reply.handoff ? 'finalizou' : 'resposta', leadId: contactId, nome, porta: porta.id, ms: Date.now() - t0, motivo,
         tools: reply.toolsUsed, guard: reply.guard, usage: reply.usage, urgente: reply.urgente || undefined, detalhe: detail,
       })
       console.log(`[agente] RESPONDEU ${contactId} (${porta.id}) em ${Date.now() - t0}ms · tools: ${reply.toolsUsed.join(', ') || '—'}${reply.guard.length ? ` · trava: ${reply.guard.join(' | ')}` : ''}`)

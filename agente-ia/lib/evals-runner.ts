@@ -40,6 +40,8 @@ export interface Cenario {
   msgs: string[]
   /** agenda simulada (ISO). Padrão: 3 dias úteis à frente, 10h/14h/16h */
   slots?: string[]
+  /** agenda de reservas simulada (VHSYS): código → total e reservado no período. Ausente = agenda não configurada */
+  reservas?: Record<string, { total: number | null; reservado: number }>
   checks: Array<{ nome: string; fn: (w: World, t: Turno[]) => boolean }>
   criterios: string[]
 }
@@ -71,8 +73,14 @@ export function slotsPadrao(): string[] {
   return out
 }
 
-function memoryPort(w: World): LeadPort {
+function memoryPort(w: World, reservas?: Cenario['reservas']): LeadPort {
   return {
+    ...(reservas ? {
+      async disponibilidade(codigos: string[], de: string, ate: string) {
+        w.log.push(`agenda ${de}..${ate}: ${codigos.join(',')}`)
+        return codigos.filter(c => reservas[c]).map(c => ({ codigo: c, nome: CRM_MAP.catalogo?.itens.find(i => i.codigo === c)?.nome || c, total: reservas[c].total, livre: reservas[c].total == null ? null : reservas[c].total! - reservas[c].reservado }))
+      },
+    } : {}),
     async getLead() { return { id: 'eval', opportunityId: w.stageId ? 'opp' : null, pipelineId: w.pipelineId, stageId: w.stageId, fields: structuredClone(w.fields), tags: [...w.tags] } },
     async writeFields(vs) { for (const v of vs) { w.fields[v.campo.id] = v.value; w.log.push(`grava ${v.campo.key}=${JSON.stringify(v.value).slice(0, 120)}`) } },
     async moveStage(s) { w.stageId = s; w.pipelineId = CRM_MAP.oportunidade.pipelineId || 'eval'; w.log.push(`etapa → ${CRM_MAP.etapas.find(e => e.id === s)?.name || s}`) },
@@ -119,7 +127,7 @@ export async function runEvals(opts: {
       const iOut = history.map(m => m.dir).lastIndexOf('out')
       const bloco = history.slice(iOut + 1).map(m => m.text).join('\n')
       const reply = await brain.generateReply({
-        port: memoryPort(w), porta, gateTag: GATE, timezone: 'America/Sao_Paulo',
+        port: memoryPort(w, c.reservas), porta, gateTag: GATE, timezone: 'America/Sao_Paulo',
         leadText: history.filter(m => m.dir === 'in').map(m => m.text).join('\n'),
         lastLeadText: bloco,
         lastAgentText: iOut >= 0 ? history[iOut].text : '',

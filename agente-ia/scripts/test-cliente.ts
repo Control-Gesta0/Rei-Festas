@@ -167,8 +167,58 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   eq('modelo A: cancelado não ocupa', cls('2026-10-30', 'Cancelado'), 'ignorar')
   eq('modelo A: vencido sem atendido = atrasada, ocupa até hoje', cls('2026-10-20', 'Em aberto'), 'atrasada:2026-10-25:5')
   eq('modelo A: vencido e atendido some', cls('2026-10-20', 'Atendido'), 'ignorar')
+  const perT = { inicio: '2026-11-19', fim: '2026-11-23' }
+  const disp = (livre: number | null) => loc.textoDisponibilidade([{ codigo: 'COP-006', nome: 'Taça Vinho', quantidade: 80, livre }], perT, '2026-11-20')
+  eq('fase 3: livre suficiente = TEM e a Karol confirma', [disp(200).ok, /TEM/.test(disp(200).texto), /Karol confirma/.test(disp(200).texto)], [true, true, true])
+  eq('fase 3: falta mostra quanto falta', [disp(50).ok, /livres só 50 → FALTA 30/.test(disp(50).texto)], [false, true])
+  eq('fase 3: estoque não cadastrado = não falar de disponibilidade', /NÃO fale de disponibilidade/.test(disp(null).texto), true)
+  eq('fase 3: nunca reservado', /NUNCA diga reservado/.test(disp(200).texto), true)
+  eq('trava agenda: "pela nossa agenda"', loc.falouDaAgenda('Pela nossa agenda tem as 80 livres'), 'Pela nossa agenda')
+  eq('trava agenda: "80 taças livres"', loc.falouDaAgenda('Ficam 80 taças livres pro dia 20'), '80 taças livres')
+  eq('trava agenda: texto normal passa', loc.falouDaAgenda('A taça de vinho sai R$ 1,20 cada. A Karol confere pro dia 20/11.'), null)
+  eq('fase 3: nenhum item com estoque = não fala de agenda', [disp(null).conhecidos, /NÃO fale de agenda nem de livre/.test(disp(null).texto), /pela nossa agenda tem livre/.test(disp(null).texto)], [0, true, false])
+  eq('cobrança agenda: "vocês têm 80 taças pro dia 20/11?"', loc.perguntouDisponibilidade('Vocês têm 80 taças de vinho pro dia 20/11?', false), true)
+  eq('cobrança agenda: "tem 60 taças pro sábado?"', loc.perguntouDisponibilidade('Tem 60 taças de champanhe pro sábado?', false), true)
+  eq('cobrança agenda: pergunta de preço não dispara', loc.perguntouDisponibilidade('quanto fica o aluguel de 5 jogos de mesa?', true), false)
+  eq('cobrança agenda: sem data não dispara', loc.perguntouDisponibilidade('vocês têm taça de vinho?', false), false)
   const obsLoc = erp.obsOrcamento({ ...dadosErp, dataEvento: '2026-10-31' }, [])
   eq('orçamento: observação leva a linha LOCAÇÃO pelo período padrão', loc.lerPeriodo(obsLoc), { inicio: '2026-10-30', fim: '2026-11-02' })
+
+  // ---------- Painel de gestão ----------
+  const painel = await import('../lib/painel')
+  const agoraP = Date.parse('2026-10-25T15:00:00-03:00')
+  const ex = (tipo: string, dias: number, extra: Record<string, unknown> = {}) => ({ at: new Date(agoraP - dias * 86400000).toISOString(), tipo, leadId: String(extra.leadId || 'L1'), ...extra }) as never
+  const execs = [
+    ex('resposta', 0, { leadId: 'A', custoUsd: 0.004 }), ex('resposta', 0, { leadId: 'A', custoUsd: 0.004 }), ex('finalizou', 0, { leadId: 'A', motivo: 'qualificado', custoUsd: 0.005 }),
+    ex('resposta', 1, { leadId: 'B' }), ex('finalizou', 1, { leadId: 'B', motivo: 'outro_servico' }),
+    ex('finalizou', 2, { leadId: 'C', motivo: 'urgente' }), ex('erro', 2, { leadId: 'C', detalhe: 'GHL 500' }),
+    ex('erp', 0, { detalhe: 'orçamento 5 · cliente 9' }), ex('erp', 1, { detalhe: 'ERRO: CPF/CNPJ ausente' }),
+    ex('resposta', 40, { leadId: 'Z' }),
+  ]
+  const ia = painel.resumirIA(execs, agoraP, 7)
+  eq('painel IA: contatos únicos e respostas no período', [ia.contatos, ia.mensagens], [3, 6])
+  eq('painel IA: enviados à Karol = qualificado + urgente', ia.encaminhados, 2)
+  eq('painel IA: finalizações por motivo com rótulo', ia.finalizacoes.map(f => `${f.rotulo}:${f.qtd}`).sort(), ['Buffet / consultor:1', 'Pronto para orçamento:1', 'Urgente (hoje/amanhã):1'])
+  eq('painel IA: ERP ok e erro', [ia.erp.ok, ia.erp.erro], [1, 1])
+  eq('painel IA: custo e erros', [ia.custoUsd, ia.erros], [0.01, 1])
+  eq('painel IA: 7 dias no gráfico', ia.porDia.length, 7)
+  const etapasP = [{ id: 's1', nome: 'Novo contato' }, { id: 's2', nome: 'Pronto para orçamento' }, { id: 's3', nome: 'Pedido fechado' }]
+  const opps = [
+    { status: 'open', pipelineStageId: 's1', monetaryValue: 0, createdAt: new Date(agoraP - 86400000).toISOString() },
+    { status: 'open', pipelineStageId: 's2', monetaryValue: 175, createdAt: new Date(agoraP - 2 * 86400000).toISOString() },
+    { status: 'won', pipelineStageId: 's3', monetaryValue: 400, lastStatusChangeAt: new Date(agoraP - 86400000).toISOString() },
+    { status: 'lost', pipelineStageId: 's2', monetaryValue: 90, lastStatusChangeAt: new Date(agoraP - 86400000).toISOString(), motivoPerda: 'Preço' },
+    { status: 'won', pipelineStageId: 's3', monetaryValue: 999, lastStatusChangeAt: new Date(agoraP - 60 * 86400000).toISOString() },
+  ]
+  const fu = painel.resumirFunil(opps, etapasP, agoraP, 7)
+  eq('painel funil: abertos por etapa', fu.etapas.map(e => `${e.nome}:${e.qtd}`), ['Novo contato:1', 'Pronto para orçamento:1', 'Pedido fechado:0'])
+  eq('painel funil: ganhos no período (o de 60 dias fica fora)', [fu.ganhos.qtd, fu.ganhos.valor], [1, 400])
+  eq('painel funil: perdidos por motivo e conversão', [fu.perdidos.porMotivo, fu.conversao], [[{ motivo: 'Preço', qtd: 1 }], 50])
+  const html = painel.renderPainel({ geradoEm: new Date(agoraP).toISOString(), dias: 7, ia, funil: fu, locacao: { hoje: { data: '2026-10-25', saem: ['3 · <script>x</script>'], voltam: [] }, devolucoesPendentes: [{ pedido: '7', cliente: 'Caio', devolucao: '2026-10-20', diasAtraso: 5 }], proximos: [], maisReservados: [], semPeriodo: ['1'] } })
+  eq('painel HTML: tem as três seções', ['Atendimento da IA', 'Funil de vendas', 'Locação (VHSYS)'].every(x => html.includes(x)), true)
+  eq('painel HTML: escapa texto vindo de cliente', html.includes('<script>x</script>'), false)
+  eq('painel HTML: devolução pendente aparece com atraso', /Caio[\s\S]*5 dia\(s\)/.test(html), true)
+  eq('painel HTML: fonte fora do ar não derruba a página', painel.renderPainel({ geradoEm: new Date(agoraP).toISOString(), dias: 7, ia, funil: { erro: 'GHL 401' }, locacao: { erro: 'tokens' } }).includes('Não consegui ler o funil do GHL: GHL 401'), true)
 
   return 0
 }

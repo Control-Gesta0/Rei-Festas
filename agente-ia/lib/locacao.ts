@@ -112,3 +112,51 @@ export function classificarReserva(
   }
   return { tipo: 'ativa', ...periodo, diasAtraso: 0 }
 }
+
+export interface ItemConsulta { codigo: string; nome: string; quantidade: number; livre: number | null }
+
+/**
+ * Resposta da ferramenta consultar_disponibilidade para o modelo (D20, fase 3).
+ * Regra de fala decidida pelo mestre: "pela nossa agenda tem ... livres; a Karol
+ * confirma ao fechar o orçamento". Só o pedido (sinal pago) reserva: dois clientes
+ * podem querer o mesmo item antes disso, por isso nunca "reservado" ou "garantido".
+ */
+export function textoDisponibilidade(itens: ItemConsulta[], periodo: { inicio: string; fim: string }, dataEvento: string): { texto: string; ok: boolean; conhecidos: number } {
+  const linhas: string[] = []
+  let falta = false
+  const conhecidos = itens.filter(i => i.livre != null).length
+  for (const i of itens) {
+    if (i.livre == null) linhas.push(`${i.nome}: estoque não cadastrado na agenda → NÃO fale de disponibilidade deste item; diga que a Karol confere`)
+    else if (i.livre >= i.quantidade) linhas.push(`${i.nome}: pediu ${i.quantidade}, livres ${i.livre} → TEM`)
+    else { falta = true; linhas.push(`${i.nome}: pediu ${i.quantidade}, livres só ${Math.max(0, i.livre)} → FALTA ${i.quantidade - Math.max(0, i.livre)}`) }
+  }
+  const dia = formatarData(dataEvento).slice(4, 9)
+  const como = !conhecidos
+    ? 'A agenda não tem o estoque destes itens: NÃO fale de agenda nem de livre. Diga que a Karol confere a disponibilidade para a data.'
+    : falta
+    ? `Diga quantos a agenda mostra livres do item que falta e que a Karol vê opções pra completar (ex.: "pela nossa agenda só tem 50 livres pro dia ${dia}; a Karol vê opções pra completar, com outro modelo ou mais unidades"); siga montando o pedido.`
+    : `Diga: "pela nossa agenda tem livre pro dia ${dia}; a Karol confirma quando fechar o orçamento"${conhecidos < itens.length ? ' (só dos itens marcados TEM; dos outros, a Karol confere)' : ''}.`
+  return {
+    ok: !falta,
+    conhecidos,
+    texto: [
+      `Agenda de ${formatarData(periodo.inicio).slice(4)} a ${formatarData(periodo.fim).slice(4)} (retirada → devolução do evento ${formatarData(dataEvento).slice(4)}):`,
+      ...linhas.map(l => `- ${l}`),
+      como,
+      'NUNCA diga reservado, garantido ou separado: só o pedido com sinal pago reserva. Não fale a quantidade total do estoque, só o que está livre.',
+    ].join('\n'),
+  }
+}
+
+/** A resposta fala da agenda ou de quantidade livre? (trava: só depois de consultar_disponibilidade). Devolve o trecho. */
+export function falouDaAgenda(texto: string): string | null {
+  const m = texto.match(/\bpela (?:nossa )?agenda\b|\bna (?:nossa )?agenda\b|\b\d+\s+(?:[a-zà-ú]+\s+){0,4}livres?\b|\btem livres?\b|\best[aá]o livres?\b/i)
+  return m ? m[0] : null
+}
+
+/** O lead perguntou se tem o item pra uma data? (dispara a cobrança de consultar_disponibilidade) */
+export function perguntouDisponibilidade(textoLead: string, temDataGravada: boolean): boolean {
+  const pergunta = /\b(?:voc[eê]s\s+)?t[eê]m\b[^.?!]*\?|\bdispon[ií]ve(?:l|is)\b|\blivres?\b|\bainda tem\b|\bconsegue[ms]?\b[^.?!]*\?/i.test(textoLead)
+  const data = temDataGravada || /\b\d{1,2}\/\d{1,2}\b|\bdia\s+\d{1,2}\b|s[aá]bado|domingo|segunda|ter[cç]a|quarta|quinta|sexta|amanh[aã]|hoje/i.test(textoLead)
+  return pergunta && data
+}

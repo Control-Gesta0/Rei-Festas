@@ -23,6 +23,8 @@ export interface Agenda {
   devolucoesPendentes: Array<{ pedido: string; cliente: string; devolucao: string; diasAtraso: number }>
   /** pedidos que saem (início) e voltam (fim) hoje */
   hoje: { data: string; saem: string[]; voltam: string[] }
+  /** pedidos que ocupam o intervalo consultado (para o painel) */
+  pedidos: Array<{ pedido: string; cliente: string; inicio: string; fim: string; itens: number; pecas: number }>
   pedidosLidos: number
   bruto?: { pedido?: Bruto; produto?: Bruto; itemPedido?: Bruto; pedidos?: Array<{ numero: string; situacao: string; periodo: string | null; classificacao: string; itens?: number }> }
 }
@@ -94,6 +96,9 @@ export async function montarAgenda(de: string, ate = de, bruto = false): Promise
       saem: cache.reservas.filter(r => r.inicio === hoje).map(r => `${r.pedido} · ${r.cliente}`),
       voltam: cache.reservas.filter(r => r.fim === hoje && !atrasados.has(r.pedido)).map(r => `${r.pedido} · ${r.cliente}`),
     },
+    pedidos: cache.reservas.filter(r => r.inicio <= ate && r.fim >= de)
+      .map(r => ({ pedido: r.pedido, cliente: r.cliente, inicio: r.inicio, fim: r.fim, itens: r.itens.length, pecas: r.itens.reduce((s, i) => s + i.quantidade, 0) }))
+      .sort((a, b) => a.inicio.localeCompare(b.inicio)),
     pedidosLidos: cache.lidos,
     ...(amostra ? { bruto: amostra } : {}),
   }

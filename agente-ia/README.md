@@ -48,6 +48,10 @@ Card que já tem nº do pedido no ERP não gera outro orçamento.
 orçamento (um clique). O orçamento já sai com a linha `LOCAÇÃO: dd/mm/aaaa a dd/mm/aaaa`
 (período padrão pelas regras da loja; a Karol ajusta). A agenda de reservas lê os pedidos:
 
+**A IA consulta a agenda** (`consultar_disponibilidade`): "pela nossa agenda tem as 80 livres pro dia
+20/11; a Karol confirma quando fechar o orçamento". Sem estoque cadastrado ou sem VHSYS, ela não fala de
+disponibilidade. Nunca diz reservado ou garantido: só o pedido com sinal reserva.
+
 `GET /api/agenda?secret=…&data=20/11/2026` (ou `&de=…&ate=…`) → por item: total, reservado (pico no
 intervalo), livre e os pedidos que ocupam; mais `devolucoesPendentes` (período vencido sem "atendido") e
 `hoje` (pedidos que saem e voltam hoje). `&bruto=1` mostra os campos como o VHSYS devolve.
@@ -88,6 +92,7 @@ Obrigatórias: `GHL_TOKEN` · `GHL_LOCATION_ID` · `OPENAI_API_KEY` · `UPSTASH_
 Operação: `CLIENT_NAME` (Rey Festas) · `GATE_TAG` (ia-ativa) · `HUMAN_TAG` (atendimento-humano) · `REDIS_PREFIX` (agente-reyfestas:) · `TEST_CONTACT_IDS`
 Opcionais: `LLM_MODEL` · `VISION_MODEL` · `STT_MODEL` · `TIMEZONE` · `DEBOUNCE_SECONDS` · `GHL_CHANNEL` (`SMS` na Rey Festas: a ponte ZaptosWPP entra como provedor de SMS)
 ERP: `VHSYS_ACCESS_TOKEN` · `VHSYS_SECRET_ACCESS_TOKEN` · `ERP_MODO` (`gravar` para valer)
+Painel: `PAINEL_SENHA` (senha própria do painel, diferente do `WEBHOOK_SECRET`)
 
 Local: os scripts leem `agente-ia/.env.local` e o `.env` da raiz do repositório. Env da Vercel só vale em deploy novo.
 
@@ -116,6 +121,7 @@ Local: os scripts leem `agente-ia/.env.local` e o `.env` da raiz do repositório
 | `POST /api/erp?secret=…` | webhook do workflow "Pedido fechado": cliente e orçamento no VHSYS |
 | `GET /api/erp?secret=…&contact_id=…` | ensaio da sincronização com o VHSYS (não grava) |
 | `GET /api/agenda?secret=…&data=dd/mm/aaaa` | agenda de reservas: quanto de cada item está livre na data |
+| `GET /api/painel` | **painel de gestão** (login com `PAINEL_SENHA`): IA, funil do GHL e locação; `?dias=30`, `?formato=json` |
 
 ## Fora desta versão
 
