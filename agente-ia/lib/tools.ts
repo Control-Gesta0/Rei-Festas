@@ -535,7 +535,7 @@ export async function runTool(ctx: ToolCtx, name: string, input: Record<string, 
       case 'consultar_disponibilidade': {
         const cat = CRM_MAP.catalogo
         if (!cat) return err('Catálogo não configurado.')
-        if (!port.disponibilidade) return ok('A agenda de reservas não está ligada. Não fale de disponibilidade: diga que a Karol confere para a data.')
+        if (!port.disponibilidade) return ok('A agenda de reservas não está ligada. Não fale de disponibilidade: diga que a nossa equipe confere para a data.')
         const hoje = hojeNoFuso(ctx.timezone)
         const state = await port.getState()
         const bruto = String(input.data_evento || '').trim() || String(state.respostas?.dataEvento || '').replace(/^\S+\s/, '')
@@ -550,7 +550,7 @@ export async function runTool(ctx: ToolCtx, name: string, input: Record<string, 
         try { agenda = await port.disponibilidade(pedidos.map(p => p.item!.codigo), periodo.inicio, periodo.fim) }
         catch (e) {
           console.warn('[consultar_disponibilidade] agenda fora:', e)
-          return ok('A agenda não respondeu agora. Não fale de disponibilidade: diga que a Karol confere para a data.')
+          return ok('A agenda não respondeu agora. Não fale de disponibilidade: diga que a nossa equipe confere para a data.')
         }
         const r = textoDisponibilidade(pedidos.map(p => {
           const a = agenda.find(x => x.codigo === p.item!.codigo)
@@ -579,6 +579,9 @@ export async function runTool(ctx: ToolCtx, name: string, input: Record<string, 
         }
         const semEvidencia = lista.filter(i => !evidenceFound(String(i.evidencia || ''), ctx.leadText)).map(i => String(i.descricao || i.codigo))
         if (semEvidencia.length) return err(`Nada gravado: a pessoa não pediu ${semEvidencia.join(', ')} (a evidência não aparece no que ela escreveu). NÃO invente item; pergunte.`)
+        // Quantidade inventada ("algumas mesas" virando 1): a pessoa tem que ter dito um número
+        const semQuantidade = lista.filter(i => !quantidadeDita(String(i.evidencia || ''), Number(i.quantidade), ctx.leadText)).map(i => String(i.descricao || i.codigo))
+        if (semQuantidade.length) return err(`Nada gravado: a pessoa não disse quantos quer de ${semQuantidade.join(', ')}. NÃO invente quantidade: responda o que ela perguntou (pode dar o valor por unidade) e pergunte quantos ela precisa.`)
         const r = montarPedido(lista.map(i => ({ codigo: String(i.codigo || ''), descricao: String(i.descricao || ''), quantidade: Number(i.quantidade) })), cat.itens)
         if ('erros' in r) return err(`Nada gravado: ${r.erros.join(' · ')}.`)
         const p = r.pedido
@@ -623,4 +626,12 @@ export async function runTool(ctx: ToolCtx, name: string, input: Record<string, 
   } catch (e) {
     return err(`Falha ao executar ${name}: ${e instanceof Error ? e.message : String(e)}`)
   }
+}
+
+const NUMERO_ESCRITO = /\b(um|uma|dois|duas|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|quatorze|catorze|quinze|dezesseis|dezessete|dezoito|dezenove|vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa|cem|cento|duzent[oa]s|trezent[oa]s|quatrocent[oa]s|quinhent[oa]s|mil|d[uú]zias?|meia d[uú]zia)\b/i
+
+/** A quantidade veio da pessoa? Número (ou número escrito) na evidência, ou o mesmo número em algo que ela escreveu. */
+export function quantidadeDita(evidencia: string, quantidade: number, leadText: string): boolean {
+  if (/\d/.test(evidencia) || NUMERO_ESCRITO.test(evidencia)) return true
+  return Number.isFinite(quantidade) && new RegExp(`(^|\\D)${quantidade}(\\D|$)`).test(leadText)
 }

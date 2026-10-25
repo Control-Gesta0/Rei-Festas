@@ -3,7 +3,7 @@ import path from 'path'
 import OpenAI from 'openai'
 import { CRM_MAP, type Porta } from './crm-map'
 import { addUsage, emptyUsage, type Usage } from './execlog'
-import { checkReply as checkReplyBase, comCumprimento, keepLastQuestion, type Violation } from './guards'
+import { checkReply as checkReplyBase, comCumprimento, comEquipeConfirma, EQUIPE_CONFIRMA, keepLastQuestion, type Violation } from './guards'
 import { falouDaAgenda, perguntouDisponibilidade } from './locacao'
 import { formatSlot } from './slots'
 import { hojeNoFuso, pedidoUrgentePronto, proximosDias } from './datas'
@@ -114,25 +114,29 @@ export function createBrain(opts: LlmOptions) {
   /** Reescreve uma vez se a trava pegou algo; se insistir, sai o texto seguro. */
   async function enforce(messages: Msg[], text: string, usage: Usage, handoff: boolean, lastLead: string, extra: (t: string) => Violation[] = () => []): Promise<{ text: string; guard: string[] }> {
     const checkReply = (t: string) => [...checkReplyBase(t), ...extra(t)]
+    // Conserto em código para as travas mecânicas (pergunta a mais, valor sem "a equipe confirma"): sem reescrita, sem texto seguro
+    const consertar = (t: string, v: Violation[]): string | null => {
+      if (!v.every(x => x.regra === 'mais de uma pergunta' || x.regra === EQUIPE_CONFIRMA)) return null
+      let out: string | null = t
+      if (v.some(x => x.regra === 'mais de uma pergunta')) out = keepLastQuestion(out, lastLead)
+      if (out && v.some(x => x.regra === EQUIPE_CONFIRMA)) out = comEquipeConfirma(out)
+      return out && out.length >= 20 && !checkReply(out).length ? out : null
+    }
     const v1 = checkReply(text)
     if (!v1.length) return { text, guard: [] }
-    if (v1.every(v => v.regra === 'mais de uma pergunta')) {
-      const cortado = keepLastQuestion(text, lastLead)
-      if (cortado && cortado.length >= 20 && !checkReply(cortado).length) return { text: cortado, guard: ['uma pergunta: cortado em código'] }
-    }
+    const c1 = consertar(text, v1)
+    if (c1) return { text: c1, guard: v1.map(v => `${v.regra}: consertado em código`) }
     const fix: Msg[] = [
       ...messages,
       { role: 'assistant', content: text },
-      { role: 'system', content: `[TRAVA DO SISTEMA] Sua resposta NÃO foi enviada porque violou: ${v1.map((v: Violation) => `${v.regra} ("${v.trecho}")`).join('; ')}. Reescreva a mensagem inteira respeitando o prompt, com NO MÁXIMO um ponto de interrogação e sem travessão. Mantenha tudo o que estava certo (valores, total, nomes dos itens, data e o próximo passo com a Karol). Responda só com o texto do WhatsApp.` },
+      { role: 'system', content: `[TRAVA DO SISTEMA] Sua resposta NÃO foi enviada porque violou: ${v1.map((v: Violation) => `${v.regra} ("${v.trecho}")`).join('; ')}. Reescreva a mensagem inteira respeitando o prompt, com NO MÁXIMO um ponto de interrogação e sem travessão. Mantenha tudo o que estava certo (valores, total, nomes dos itens, data e o próximo passo com a equipe). Responda só com o texto do WhatsApp.` },
     ]
     const c = await call(fix, null, usage)
     const text2 = (c.message?.content || '').trim()
     const v2 = checkReply(text2)
     if (!v2.length) return { text: text2, guard: v1.map(v => `${v.regra}: ${v.trecho}`) }
-    if (v2.every(v => v.regra === 'mais de uma pergunta')) {
-      const cortado = keepLastQuestion(text2, lastLead)
-      if (cortado && cortado.length >= 20 && !checkReply(cortado).length) return { text: cortado, guard: [...v1.map(v => `${v.regra}: ${v.trecho}`), '2ª: uma pergunta: cortado em código'] }
-    }
+    const c2 = consertar(text2, v2)
+    if (c2) return { text: c2, guard: [...v1.map(v => `${v.regra}: ${v.trecho}`), ...v2.map(v => `2ª: ${v.regra}: consertado em código`)] }
     return {
       text: handoff ? CRM_MAP.textoSeguroFinal : CRM_MAP.textoSeguro,
       guard: [...v1.map(v => `${v.regra}: ${v.trecho}`), ...v2.map(v => `2ª: ${v.regra}: ${v.trecho}`), 'fallback'],
@@ -180,7 +184,7 @@ export function createBrain(opts: LlmOptions) {
       // Evento hoje ou amanhã com itens, data e entrega já gravados: a regra manda passar já (uma cobrança)
       if (!handoff && !cobrouUrgente && step < MAX_STEPS - 1 && pedidoUrgentePronto(await ctx.port.getState(), hojeNoFuso(ctx.timezone))) {
         cobrouUrgente = true
-        messages.push({ role: 'system', content: '[SISTEMA] O evento é hoje ou amanhã e o pedido já tem itens, data e entrega ou retirada. Chame finalizar_atendimento(urgente) AGORA, com a evidência do lead, e depois escreva a mensagem de encerramento sem pergunta: diga que a Karol já vai ver se dá pra atender.' })
+        messages.push({ role: 'system', content: '[SISTEMA] O evento é hoje ou amanhã e o pedido já tem itens, data e entrega ou retirada. Chame finalizar_atendimento(urgente) AGORA, com a evidência do lead, e depois escreva a mensagem de encerramento sem pergunta: diga que a nossa equipe já vai ver se dá pra atender.' })
         continue
       }
       // Perguntou se tem o item pra uma data e a agenda não foi consultada: uma cobrança (fase 3, D20)
@@ -205,7 +209,12 @@ export function createBrain(opts: LlmOptions) {
       if (!text) break
       // Disponibilidade só depois de consultar a agenda (D20, fase 3): sem consulta, "agenda"/"livres" é invenção
       const consultou = !!(await ctx.port.getState()).agendaConsultada
-      const semAgenda = (t: string): Violation[] => (!consultou && falouDaAgenda(t) ? [{ regra: 'falou da agenda sem consultar_disponibilidade', trecho: falouDaAgenda(t)! }] : [])
+      // O cliente não sabe quem é a Karol: para ele é "nossa equipe" (só usa o nome se ele falou dela)
+      const leadFalouKarol = /karol|carol/i.test(ctx.lastLeadText) || history.some(m => m.dir === 'in' && /karol|carol/i.test(m.text))
+      const semAgenda = (t: string): Violation[] => [
+        ...(!consultou && falouDaAgenda(t) ? [{ regra: 'falou da agenda sem consultar_disponibilidade', trecho: falouDaAgenda(t)! }] : []),
+        ...(!leadFalouKarol && /\bkarol\b/i.test(t) ? [{ regra: 'citou a Karol: para o cliente é "nossa equipe"', trecho: 'Karol' }] : []),
+      ]
       const safe = await enforce(messages, text, usage, handoff, ctx.lastLeadText, semAgenda)
       if (lead.primeiroContatoDaPorta) safe.text = comCumprimento(safe.text, horaNoFuso(ctx.timezone), ctx.lastLeadText)
       if (!handoff) {

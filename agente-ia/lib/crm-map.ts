@@ -255,8 +255,8 @@ export const CRM_MAP = {
     },
   ] as Alerta[],
 
-  textoSeguro: 'Entendi! Essa parte a Karol confere certinho com você. Vamos seguir montando o pedido?',
-  textoSeguroFinal: 'Obrigada! Já deixei tudo anotado e a Karol continua com você por aqui.',
+  textoSeguro: 'Entendi! Me conta quais itens e quantas unidades você precisa?',
+  textoSeguroFinal: 'Obrigada! Já deixei tudo anotado e a nossa equipe continua com você por aqui.',
 
   midia: {
     instrucaoVisao: 'Descreva em português, em no máximo 5 frases, o arquivo que um cliente de uma loja de aluguel de material para festas mandou pelo WhatsApp. Foto de item (louça, talher, copo, toalha, mesa, cadeira, rechaud, decoração): diga o tipo, cor, formato, material e a quantidade visível. Print de lista, catálogo ou conversa: transcreva os itens e as quantidades. Comprovante de pagamento: diga que é comprovante, o valor e a data. O que não estiver legível, diga "ilegível".',

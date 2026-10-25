@@ -15,7 +15,7 @@ export const REGRAS_CLIENTE: Array<{ regra: string; re: RegExp }> = [
   { regra: 'percentual fora da regra', re: /(?<![\d,.])(?!(?:7|50)\s?%)\d{1,3}(?:[.,]\d+)?\s?%/ },
   { regra: 'valor de multa', re: /\bmulta\s+(?:de\s+)?(?:R\$|\d)/i },
   // Falou valor: a Karol confirma disponibilidade e valor final (regra de preço do prompt)
-  { regra: 'valor sem dizer que a Karol confirma', re: /^(?![\s\S]*\bkarol\b)[\s\S]*?R\$\s?\d[\d.,]*/i },
+  { regra: 'valor sem dizer que a equipe confirma', re: /^(?![\s\S]*\b(?:karol|equipe)\b)[\s\S]*?R\$\s?\d[\d.,]*/i },
   // Tom humano: travessão denuncia texto de IA no WhatsApp
   { regra: 'travessão', re: /[—–]/ },
   // Abertura de chatbot: a loja não começa mensagem com "Perfeito" (nucleo.md, Como você escreve)

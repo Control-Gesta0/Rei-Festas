@@ -1,7 +1,7 @@
 /**
  * LOCAÇÃO SEM O APP LOCAÇÕES (decisão D20). O pedido de locação é o PEDIDO do
  * VHSYS (gerado do orçamento da integração). O período da locação vai numa linha
- * fixa da observação do pedido, que a Karol pode ajustar:
+ * fixa da observação do pedido, que a nossa equipe pode ajustar:
  *
  *   LOCAÇÃO: 30/10/2026 a 02/11/2026
  *
@@ -126,16 +126,16 @@ export function textoDisponibilidade(itens: ItemConsulta[], periodo: { inicio: s
   let falta = false
   const conhecidos = itens.filter(i => i.livre != null).length
   for (const i of itens) {
-    if (i.livre == null) linhas.push(`${i.nome}: estoque não cadastrado na agenda → NÃO fale de disponibilidade deste item; diga que a Karol confere`)
+    if (i.livre == null) linhas.push(`${i.nome}: estoque não cadastrado na agenda → NÃO fale de disponibilidade deste item; diga que a nossa equipe confere`)
     else if (i.livre >= i.quantidade) linhas.push(`${i.nome}: pediu ${i.quantidade}, livres ${i.livre} → TEM`)
     else { falta = true; linhas.push(`${i.nome}: pediu ${i.quantidade}, livres só ${Math.max(0, i.livre)} → FALTA ${i.quantidade - Math.max(0, i.livre)}`) }
   }
   const dia = formatarData(dataEvento).slice(4, 9)
   const como = !conhecidos
-    ? 'A agenda não tem o estoque destes itens: NÃO fale de agenda nem de livre. Diga que a Karol confere a disponibilidade para a data.'
+    ? 'A agenda não tem o estoque destes itens: NÃO fale de agenda nem de livre. Diga que a nossa equipe confere a disponibilidade para a data.'
     : falta
-    ? `Diga quantos a agenda mostra livres do item que falta e que a Karol vê opções pra completar (ex.: "pela nossa agenda só tem 50 livres pro dia ${dia}; a Karol vê opções pra completar, com outro modelo ou mais unidades"); siga montando o pedido.`
-    : `Diga: "pela nossa agenda tem livre pro dia ${dia}; a Karol confirma quando fechar o orçamento"${conhecidos < itens.length ? ' (só dos itens marcados TEM; dos outros, a Karol confere)' : ''}.`
+    ? `Diga quantos a agenda mostra livres do item que falta e que a nossa equipe vê opções pra completar (ex.: "pela nossa agenda só tem 50 livres pro dia ${dia}; a nossa equipe vê opções pra completar, com outro modelo ou mais unidades"); siga montando o pedido.`
+    : `Diga: "pela nossa agenda tem livre pro dia ${dia}; a nossa equipe confirma quando fechar o orçamento"${conhecidos < itens.length ? ' (só dos itens marcados TEM; dos outros, a nossa equipe confere)' : ''}.`
   return {
     ok: !falta,
     conhecidos,
