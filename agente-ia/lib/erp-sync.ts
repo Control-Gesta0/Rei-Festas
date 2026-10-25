@@ -163,6 +163,8 @@ export async function sincronizarPedido(contactId: string, opportunityId: string
     return r
   } catch (e) {
     r.erro = e instanceof Error ? e.message : String(e)
+    // Diagnóstico na nota: com qual cliente do VHSYS o orçamento foi tentado
+    if (r.cliente?.id) r.erro += ` (cliente VHSYS id ${r.cliente.id}, ${r.cliente.novo ? 'cadastrado agora' : 'já existia'})`
     if (gravar) {
       // A Karol vê no contato: tag + nota com o motivo. O card fica em "Pedido fechado"; mover de novo tenta outra vez.
       try {
