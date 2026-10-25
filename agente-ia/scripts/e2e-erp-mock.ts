@@ -101,7 +101,8 @@ globalThis.fetch = (async (input: any, init: any = {}) => {
         { id_ped: 7001, id_pedido: 3, nome_cliente: 'Maria', status_pedido: 'Em Aberto', obs_pedido: 'Data do evento: 31/10/2099\nLOCAÇÃO: 30/10/2099 a 02/11/2099 (retirada → devolução)' },
         { id_ped: 7002, id_pedido: 4, nome_cliente: 'João', status_pedido: 'Cancelado', obs_pedido: 'LOCAÇÃO: 30/10/2099 a 02/11/2099' },
         { id_ped: 7003, id_pedido: 5, nome_cliente: 'Ana', status_pedido: 'Em Aberto', obs_pedido: 'sem período' },
-        { id_ped: 7004, id_pedido: 6, nome_cliente: 'Bia', status_pedido: 'Em Aberto', obs_pedido: 'LOCAÇÃO: 01/10/2000 a 03/10/2000' },
+        { id_ped: 7004, id_pedido: 6, nome_cliente: 'Bia', status_pedido: 'Atendido', obs_pedido: 'LOCAÇÃO: 01/10/2000 a 03/10/2000' },
+        { id_ped: 7005, id_pedido: 7, nome_cliente: 'Caio', status_pedido: 'Em Aberto', obs_pedido: 'LOCAÇÃO: 01/10/2000 a 03/10/2000' },
       ] })
     }
     const mpp = url.match(/\/pedidos\/(\d+)\/produtos/)
@@ -204,7 +205,9 @@ async function main() {
   const ag = await montarAgenda('2099-10-31')
   const linha = (c: string) => ag.itens.find(i => i.codigo === c)
   eq('agenda: pedido em aberto com LOCAÇÃO reserva os itens', [linha('LOU-001')?.reservado, linha('LOU-001')?.livre, linha('TAL-009')?.livre], [50, 250, 170])
-  eq('agenda: cancelado e já devolvido não reservam; sem período fica para conferir', [ag.reservas, ag.semPeriodo], [1, ['5']])
+  eq('agenda: cancelado e atendido não reservam; sem período fica para conferir', [ag.reservas, ag.semPeriodo], [1, ['5']])
+  eq('agenda: período vencido sem "atendido" = devolução pendente', ag.devolucoesPendentes.map(p => p.pedido), ['7'])
+  eq('agenda: pendente ocupa hoje', (await montarAgenda(ag.hoje.data)).itens.find(i => i.codigo === 'LOU-001')?.reservado, 999)
   eq('agenda: fora do período não ocupa', (await montarAgenda('2099-11-10')).itens.length, 0)
 
   // 7. Sem CPF: não envia, marca erro para a Karol ver

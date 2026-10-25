@@ -215,18 +215,22 @@ evidência em `docs/cliente/diagnostico.md` §7.1 e §7.2.
 - **Estoque = patrimônio da loja** (testado em 25/10/2026): o pedido do VHSYS não mexe
   no estoque nem no financeiro sozinho; cada um tem uma ação própria no menu do pedido.
   Gerar o pedido a partir do orçamento **não** lança estoque. "Lançar estoque" e "Estornar
-  estoque" funcionam (o pedido ganha um ícone de caixa enquanto está lançado): é a
-  alternativa B (estoque = o que está na prateleira), em decisão com o mestre.
+  estoque" funcionam (o pedido ganha um ícone de caixa enquanto está lançado), mas o
+  mestre escolheu o **modelo A** (25/10/2026): estoque = patrimônio, nunca lançado na
+  locação. Lançar na saída e estornar na volta (modelo B) faria a agenda contar duas
+  vezes e dependeria de ninguém esquecer o estorno.
   Na locação:
   - **Lançar contas**: sim (sinal e saldo entram em contas a receber);
   - **Lançar estoque**: **nunca** (a agenda bloqueia pelo período; lançar contaria duas vezes);
-  - **Alterar status**: marca a devolução;
+  - **Alterar status → atendido**: marca a devolução (libera o material na agenda na hora);
   - item perdido ou quebrado: ajuste de estoque só da quantidade perdida + cobrança pelo
     valor de reposição.
   - Não usar Compras → Entrada de Mercadoria para devolução: exige fornecedor, mexe no
     custo médio, tem pagamento e polui compras e DRE.
-- Pendências: (1) modelo A (patrimônio, recomendado) ou B (lançar na saída, estornar na
-  volta); (2) nomes dos campos de pedido na API (conferir com `?bruto=1`); (3) nota fiscal
+- **Devolução pendente**: período da linha LOCAÇÃO vencido e o pedido não marcado como
+  atendido. O material continua ocupando a agenda até hoje e o pedido aparece na lista
+  `devolucoesPendentes` de `/api/agenda` (o "Devolução" do Acercom).
+- Pendências: (1) conferir com `?bruto=1` o nome da situação "atendido" na API; (2) nomes dos campos de pedido na API (conferir com `?bruto=1`); (3) nota fiscal
   na locação (contador); (4) modelo de contrato (app ou o do Acercom).
 
 ## Plano de contas aplicado no VHSYS (24/10/2026)
