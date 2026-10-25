@@ -37,7 +37,7 @@ PIPELINES = {
     "Locação: Vendas": [
         "Novo contato",
         "Coletando pedido",
-        "Pedido completo",        # fim da alcada da IA
+        "Pronto para orçamento",  # fim da alcada da IA (era "Pedido completo", mesmo id)
         "Orçamento enviado",
         "Pedido fechado",         # o aceite: fim da jornada no GHL (vai para o VHSYS)
     ],

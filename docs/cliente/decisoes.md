@@ -189,6 +189,7 @@ evidência em `docs/cliente/diagnostico.md` §7.1 e §7.2.
 | D16 | A jornada no GHL vai até **Pedido fechado** (= o cliente aceitou o orçamento). Reserva, sinal, saldo e recebimento são tratados **no VHSYS**. "Aguardando pagamento" virou "Pedido fechado" (mesmo id) e "Reservado" sai do funil | mestre, 25/10 |
 | D17 | Os lembretes de saldo, véspera e devolução (D13) **continuam no GHL**, disparados pelos campos de data do card | mestre, 25/10 |
 | D18 | Card em Pedido fechado → **cliente e orçamento** criados no VHSYS (`agente-ia/lib/erp-sync.ts`). Atualiza D4: o gatilho deixa de ser "Ganho" e passa a ser "Pedido fechado"; a integração marca a oportunidade como Ganho | mestre, 25/10 |
+| D19 | A etapa onde a IA entrega o pedido passa a se chamar **"Pronto para orçamento"** (era "Pedido completo", mesmo id): o nome diz o que a Karol faz com o card | mestre, 25/10 |
 
 - O orçamento leva os itens com código do catálogo (o `cod_produto` da carga de 209
   itens), quantidade e preço da linha do card (ou o da tabela). Item sem código vai na

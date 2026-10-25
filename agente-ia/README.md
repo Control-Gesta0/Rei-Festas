@@ -2,7 +2,7 @@
 
 Atendente virtual do WhatsApp da Rey Festas. Roda na Vercel, lê e escreve no GHL
 e usa a OpenAI. Recebe quem quer alugar, monta o pedido completo (itens, data,
-entrega ou retirada, cadastro) e passa para a Karol no card "Pedido completo".
+entrega ou retirada, cadastro) e passa para a Karol no card "Pronto para orçamento".
 Não confirma disponibilidade, não reserva e não recebe pagamento.
 
 Motor: template de agente da Control Gestão (GHL + OpenAI + Upstash, sem n8n).
@@ -27,7 +27,7 @@ Jornada no funil "Locação: Vendas" (o GHL vai até o aceite):
 
 | Etapa | Quem move |
 |---|---|
-| Novo contato → Coletando pedido → Pedido completo | IA |
+| Novo contato → Coletando pedido → Pronto para orçamento | IA |
 | Orçamento enviado → **Pedido fechado** (o aceite) | Karol |
 
 Daí para a frente (reserva no app Locações, sinal, saldo, recebimento) é tudo no VHSYS.

@@ -10,7 +10,7 @@
  *  2. O pedido é o roteiro. Itens e total saem da tool calcular_tabela (código);
  *     endereço do evento e quem recebe só valem para entrega; RG, e-mail e
  *     endereço residencial só para quem ainda não tem cadastro.
- *  3. Alçada: Novo contato → Coletando pedido → Pedido completo. Daí para a
+ *  3. Alçada: Novo contato → Coletando pedido → Pronto para orçamento. Daí para a
  *     frente é da Karol: Orçamento enviado → Pedido fechado (o aceite, fim da
  *     jornada no GHL). Reserva, sinal, saldo e recebimento ficam no VHSYS
  *     (lib/erp-sync.ts manda cliente e orçamento quando o card chega ao fim).
@@ -188,7 +188,7 @@ export const CRM_MAP = {
   etapas: [
     { id: VENDAS.novoContato, name: 'Novo contato', quando: 'a conversa começou (o código faz isso sozinho)', soCodigo: true },
     { id: VENDAS.coletando, name: 'Coletando pedido', quando: 'a pessoa passou o primeiro item ou a data do evento' },
-    { id: VENDAS.pedidoCompleto, name: 'Pedido completo', quando: 'o pedido e o cadastro estão completos (o código move ao finalizar)', soCodigo: true },
+    { id: VENDAS.pedidoCompleto, name: 'Pronto para orçamento', quando: 'o pedido e o cadastro estão completos (o código move ao finalizar)', soCodigo: true },
   ] as Etapa[],
   /** movidas pelo CÓDIGO, não pelo modelo */
   etapaEmContatoId: VENDAS.novoContato,
