@@ -24,7 +24,7 @@ const naEtapa = (nome: string) => ({ nome: `card em "${nome}"`, fn: (w: World) =
 const disse = (nome: string, re: RegExp) => ({ nome, fn: (_w: World, t: Turno[]) => t.some(x => re.test(x.resposta)) })
 const naoDisse = (nome: string, re: RegExp) => ({ nome, fn: (_w: World, t: Turno[]) => t.every(x => !re.test(x.resposta)) })
 
-const ABERTURA = 'Olá, boa tarde! Tudo bem? Aqui é a assistente virtual da Rey Festas. Me conta o que você precisa pro seu evento?'
+const ABERTURA = 'Olá, boa tarde! Tudo bem? Aqui é a assistente virtual da Rey Festas 😊 Em que posso te ajudar?'
 
 export const CENARIOS: Cenario[] = [
   {
@@ -250,5 +250,36 @@ export const CENARIOS: Cenario[] = [
       'Sem frases de IA como "Ótima pergunta", "Fico à disposição", "solução", "experiência incrível"',
       'Termina com uma pergunta que ajuda a montar o pedido',
     ],
+  },
+  {
+    id: 'so-cumprimento',
+    porta: 'locacao',
+    msgs: ['Boa tarde'],
+    checks: [
+      ...base, naoFinalizou, naoUsou('calcular_tabela'),
+      disse('disse que é a assistente virtual', /assistente virtual/i),
+      disse('perguntou em que pode ajudar', /(em que|como) posso (te )?ajudar/i),
+      naoDisse('não presumiu evento, festa ou orçamento', /evento|\bfestas?\b(?<!rey festas)|or[cç]amento|cat[aá]logo/i),
+    ],
+    criterios: ['Cumprimenta como a loja e se apresenta como assistente virtual', 'Só pergunta em que pode ajudar, sem presumir o assunto'],
+  },
+  {
+    id: 'pede-orcamento',
+    porta: 'locacao',
+    historico: [['in', 'boa tarde'], ['out', ABERTURA]],
+    msgs: ['Queria fazer um orçamento'],
+    checks: [
+      ...base, naoFinalizou,
+      disse('mandou o link do catálogo', /wa\.me\/c\/5511981223778/),
+      naoDisse('não perguntou tipo de evento', /tipo de evento|que evento/i),
+    ],
+    criterios: ['Pede os itens com as quantidades', 'Manda o link do catálogo na mesma mensagem'],
+  },
+  {
+    id: 'devolucao',
+    porta: 'locacao',
+    msgs: ['Boa tarde, queria combinar a devolução do material que aluguei semana passada'],
+    checks: [...base, finalizou('ja_e_cliente'), naoUsou('calcular_tabela'), naoDisse('não mandou catálogo', /wa\.me\/c\//)],
+    criterios: ['Diz que vai passar para a Karol', 'Não tenta vender nem pede itens ou cadastro'],
   },
 ]

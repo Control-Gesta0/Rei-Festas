@@ -91,8 +91,20 @@ export const DISSE_NAO_SEI = /n[aã]o sei|sei l[aá]|n[aã]o lembro|n[aã]o fa[c
  * Usa o período que o lead usou ("boa tarde"); senão, a hora (0-23) no fuso.
  */
 export function comCumprimento(text: string, hora: number, textoLead = ''): string {
-  if (/^\W*(ol[aá]|oi\b|bom dia|boa tarde|boa noite)/i.test(text)) return text
-  const doLead = /\b(bom dia|boa tarde|boa noite)\b/i.exec(textoLead)?.[1].toLowerCase()
-  const periodo = doLead || (hora < 12 ? 'bom dia' : hora < 18 ? 'boa tarde' : 'boa noite')
-  return `Olá, ${periodo}! Tudo bem? ${text}`
+  if (!/^\W*(ol[aá]|oi\b|bom dia|boa tarde|boa noite)/i.test(text)) {
+    const doLead = /\b(bom dia|boa tarde|boa noite)\b/i.exec(textoLead)?.[1].toLowerCase()
+    const periodo = doLead || (hora < 12 ? 'bom dia' : hora < 18 ? 'boa tarde' : 'boa noite')
+    text = `Olá, ${periodo}! Tudo bem? ${text}`
+  }
+  return comApresentacao(text)
+}
+
+/** Primeira mensagem diz que é a assistente virtual, logo depois do cumprimento (decidido com o cliente). */
+export function comApresentacao(text: string): string {
+  if (/assistente virtual/i.test(text)) return text
+  const apres = 'Aqui é a assistente virtual da Rey Festas 😊'
+  const m = /^\s*(?:ol[aá]|oi|bom dia|boa tarde|boa noite)(?=[\s,!.?])[^!?.]*[!?.](?:\s*tudo bem\s*\?)?/i.exec(text)
+  if (!m) return `${apres} ${text}`
+  const resto = text.slice(m[0].length).trim()
+  return resto ? `${m[0]} ${apres} ${resto}` : `${m[0]} ${apres}`
 }

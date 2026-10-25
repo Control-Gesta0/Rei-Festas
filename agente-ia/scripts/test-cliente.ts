@@ -35,9 +35,11 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   eq('rey: "perfeito" no meio passa', regras('Fica perfeito pra mesa de doces 😉'), [])
   eq('rey: fala real da loja passa', regras('Olá, bom dia! Tudo bem? Essa é a nossa bege adamascada 😉'), [])
 
-  eq('cumprimento entra na primeira mensagem', comCumprimento('Funciona assim...', 14), 'Olá, boa tarde! Tudo bem? Funciona assim...')
-  eq('cumprimento segue o período do lead', comCumprimento('Funciona assim...', 9, 'oi, boa tarde!'), 'Olá, boa tarde! Tudo bem? Funciona assim...')
-  eq('cumprimento não duplica', comCumprimento('Olá, bom dia! Tudo bem? Temos sim.', 9), 'Olá, bom dia! Tudo bem? Temos sim.')
+  eq('cumprimento entra na primeira mensagem', comCumprimento('Funciona assim...', 14), 'Olá, boa tarde! Tudo bem? Aqui é a assistente virtual da Rey Festas 😊 Funciona assim...')
+  eq('cumprimento segue o período do lead', comCumprimento('Funciona assim...', 9, 'oi, boa tarde!'), 'Olá, boa tarde! Tudo bem? Aqui é a assistente virtual da Rey Festas 😊 Funciona assim...')
+  eq('cumprimento não duplica', comCumprimento('Olá, bom dia! Tudo bem? Temos sim.', 9), 'Olá, bom dia! Tudo bem? Aqui é a assistente virtual da Rey Festas 😊 Temos sim.')
+  eq('apresentação não duplica', comCumprimento('Olá, bom dia! Tudo bem? Aqui é a assistente virtual da Rey Festas. Em que posso te ajudar?', 9), 'Olá, bom dia! Tudo bem? Aqui é a assistente virtual da Rey Festas. Em que posso te ajudar?')
+  eq('apresentação sem "tudo bem"', comCumprimento('Oi, Ana! Temos sim.', 9), 'Oi, Ana! Aqui é a assistente virtual da Rey Festas 😊 Temos sim.')
 
   // ---------- Datas ----------
   const { parseDataBR, conferirEvidenciaData, formatarData, pedidoUrgentePronto, proximoDiaDaSemana, dataPelaEvidencia } = await import('../lib/datas')
