@@ -243,3 +243,6 @@ O vínculo categoria → linha do DRE no VHSYS não fica na categoria: fica num
 - **Cicatriz:** o "Detalhe" da tela Devolução é o formulário de baixa (vem com data
   efetiva = hoje e Retorno preenchido). Não usar para leitura; um Enter registra a
   devolução. Itens dos pedidos: ler por relatório (somente leitura) ou pela exportação.
+- **Decisão (24/10/2026, mestre): pedidos não serão migrados.** O escopo da migração do
+  Acercom é só cadastro: **clientes, fornecedores e produtos**. Os pedidos em aberto
+  terminam no Acercom.
