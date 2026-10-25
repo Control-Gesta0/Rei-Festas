@@ -84,7 +84,11 @@ export async function sincronizarPedido(contactId: string, opportunityId: string
     if (!doc) throw new Error(`CPF/CNPJ ausente ou inválido no contato ("${d.documento}")`)
     if (!d.nome) throw new Error('contato sem nome')
     const { itens, semCodigo } = lerItens(d.itensTexto, CRM_MAP.catalogo?.itens || [])
-    if (!itens.length) throw new Error('nenhum item com código do catálogo no campo "Itens solicitados"')
+    if (!itens.length) {
+      throw new Error(d.itensTexto
+        ? `nenhum item com código do catálogo no campo "Itens solicitados" (o campo tem: "${d.itensTexto.slice(0, 160)}")`
+        : `o campo "Itens solicitados" está vazio na oportunidade ${opp.id} (${(opp.customFields || []).length} campos lidos)`)
+    }
 
     // Produtos no VHSYS (cod_produto = código do catálogo)
     const produtos: Record<string, unknown>[] = []

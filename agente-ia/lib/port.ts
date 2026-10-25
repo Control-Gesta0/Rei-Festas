@@ -2,7 +2,7 @@ import { CONFIG } from './config'
 import { CRM_MAP } from './crm-map'
 import {
   addContactNote, addContactTags, createAppointment, createOpportunity, findOpportunity, getContact, getFreeSlots,
-  contactName, contactTags, removeContactTags, updateContactFields, updateContactNative, updateOpportunity, type GhlOpportunity,
+  contactName, contactTags, removeContactTags, updateContactFields, updateContactNative, updateOpportunity, valorCampo, type GhlOpportunity,
 } from './ghl'
 import { k, redis } from './redis'
 import { getState, patchState } from './state'
@@ -38,8 +38,8 @@ export function ghlPort(contactId: string): LeadPort {
         const c = await getContact(contactId)
         const o = await getOpp()
         const fields: LeadView['fields'] = {}
-        for (const f of c.customFields || []) fields[f.id] = f.value ?? f.field_value ?? f.fieldValue
-        for (const f of o?.customFields || []) fields[f.id] = f.fieldValue ?? f.field_value ?? f.value
+        for (const f of c.customFields || []) fields[f.id] = valorCampo(f)
+        for (const f of o?.customFields || []) fields[f.id] = valorCampo(f)
         cached = { id: c.id, opportunityId: o?.id || null, pipelineId: o?.pipelineId || null, stageId: o?.pipelineStageId || null, fields, tags: contactTags(c) }
       }
       return cached

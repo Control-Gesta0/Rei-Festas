@@ -42,9 +42,10 @@ function reset(cpf: string | null) {
   oportunidade = {
     id: 'O1', pipelineId: '5ZqhXairBGVSgpWC8PwA', pipelineStageId: 'f2ef927d-4b4d-49a7-ac91-d7026c588c7b', status: 'open',
     customFields: [
-      { id: 'hr7BVj2MLWiTEN7NGkD4', fieldValue: 'LOU-001 · 30 × Prato Refeição Fundo · R$ 3,50 cada = R$ 105,00\nTAL-009 · 30 × Garfo Refeição Class · R$ 1,20 cada = R$ 36,00' },
-      { id: 'i24isUy3ILG7v7RXMir5', fieldValue: '2026-10-31' },
-      { id: 'do2qOzlfkZZfvZauMNBv', fieldValue: 'Retirada na loja' },
+      // formato real da API v2 do GHL para oportunidade: fieldValue<Tipo>
+      { id: 'hr7BVj2MLWiTEN7NGkD4', fieldValueString: 'LOU-001 · 30 × Prato Refeição Fundo · R$ 3,50 cada = R$ 105,00\nTAL-009 · 30 × Garfo Refeição Class · R$ 1,20 cada = R$ 36,00' },
+      { id: 'i24isUy3ILG7v7RXMir5', fieldValueDate: Date.UTC(2026, 9, 31, 3) },
+      { id: 'do2qOzlfkZZfvZauMNBv', fieldValueString: 'Retirada na loja' },
     ],
   }
   posts.length = 0; notas.length = 0; tags = []; vhsysClientes = []
@@ -114,6 +115,7 @@ async function main() {
   eq('ensaio: cliente novo planejado com CPF formatado', [e.cliente?.novo, e.cliente?.payload?.cnpj_cliente], [true, '123.456.789-09'])
   eq('ensaio: 2 produtos com id do VHSYS', e.orcamento?.produtos.map(p => `${p.id_produto}:${p.qtde_produto}:${p.valor_unit_produto}`), ['11:30:3.50', '22:30:1.20'])
   eq('ensaio: total do orçamento', e.orcamento?.payload.valor_total_produtos, '141.00')
+  eq('ensaio: data do evento lida do fieldValueDate', /31\/10\/2026/.test(String(e.orcamento?.payload.obs_pedido)), true)
   eq('ensaio: nada foi gravado', posts.length, 0)
 
   // 2. Gravar: cliente, orçamento, produtos e volta no GHL

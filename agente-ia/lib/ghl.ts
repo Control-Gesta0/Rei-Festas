@@ -45,7 +45,18 @@ const loc = () => encodeURIComponent(CONFIG.ghlLocationId)
 
 // ---------- Contato ----------
 
-export interface GhlCustomValue { id: string; value?: unknown; field_value?: unknown; fieldValue?: unknown }
+export interface GhlCustomValue { id: string; value?: unknown; field_value?: unknown; fieldValue?: unknown; [k: string]: unknown }
+
+/**
+ * Valor de um custom field em qualquer formato que o GHL devolve: contato usa
+ * `value`; oportunidade (API v2) usa `fieldValueString`, `fieldValueNumber`,
+ * `fieldValueDate`, `fieldValueArray`... conforme o tipo.
+ */
+export function valorCampo(f: GhlCustomValue): unknown {
+  for (const key of ['value', 'field_value', 'fieldValue']) if (f[key] != null) return f[key]
+  for (const [key, v] of Object.entries(f)) if (key.startsWith('fieldValue') && v != null) return v
+  return null
+}
 
 export interface GhlContact {
   id: string
@@ -257,5 +268,5 @@ export const fieldOptions = (f: GhlField): string[] =>
 
 export function customValue(list: GhlCustomValue[] | undefined, id: string): unknown {
   const f = (list || []).find(v => v.id === id)
-  return f ? (f.value ?? f.field_value ?? f.fieldValue ?? null) : null
+  return f ? valorCampo(f) : null
 }
