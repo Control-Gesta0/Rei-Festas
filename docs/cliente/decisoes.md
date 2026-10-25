@@ -214,6 +214,9 @@ evidência em `docs/cliente/diagnostico.md` §7.1 e §7.2.
 - Fases seguintes: contrato em PDF a partir do pedido; IA consultando a agenda.
 - **Estoque = patrimônio da loja** (testado em 25/10/2026): o pedido do VHSYS não mexe
   no estoque nem no financeiro sozinho; cada um tem uma ação própria no menu do pedido.
+  Gerar o pedido a partir do orçamento **não** lança estoque. "Lançar estoque" e "Estornar
+  estoque" funcionam (o pedido ganha um ícone de caixa enquanto está lançado): é a
+  alternativa B (estoque = o que está na prateleira), em decisão com o mestre.
   Na locação:
   - **Lançar contas**: sim (sinal e saldo entram em contas a receber);
   - **Lançar estoque**: **nunca** (a agenda bloqueia pelo período; lançar contaria duas vezes);
@@ -222,8 +225,8 @@ evidência em `docs/cliente/diagnostico.md` §7.1 e §7.2.
     valor de reposição.
   - Não usar Compras → Entrada de Mercadoria para devolução: exige fornecedor, mexe no
     custo médio, tem pagamento e polui compras e DRE.
-- Pendências: (1) conferir que gerar o pedido a partir do orçamento não lança estoque
-  sozinho; (2) nomes dos campos de pedido na API (conferir com `?bruto=1`); (3) nota fiscal
+- Pendências: (1) modelo A (patrimônio, recomendado) ou B (lançar na saída, estornar na
+  volta); (2) nomes dos campos de pedido na API (conferir com `?bruto=1`); (3) nota fiscal
   na locação (contador); (4) modelo de contrato (app ou o do Acercom).
 
 ## Plano de contas aplicado no VHSYS (24/10/2026)
