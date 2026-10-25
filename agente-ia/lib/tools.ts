@@ -35,6 +35,8 @@ export interface LeadPort {
   addTags(tags: string[]): Promise<void>
   removeTags(tags: string[]): Promise<void>
   addNote(text: string): Promise<void>
+  /** valor da oportunidade no funil (o "Valor" do card) */
+  setValor?(valor: number): Promise<void>
   getState(): Promise<LeadState>
   patchState(p: Partial<LeadState>): Promise<LeadState>
   /** agenda: horários livres reais (ISO) */
@@ -526,6 +528,7 @@ export async function runTool(ctx: ToolCtx, name: string, input: Record<string, 
         if (campoItens?.id) writes.push({ campo: campoItens, value: texto })
         if (campoValor?.id) writes.push({ campo: campoValor, value: p.total })
         if (writes.length) await port.writeFields(writes)
+        if (port.setValor) await port.setValor(p.total)
         const state = await port.getState()
         const respostas = { ...(state.respostas || {}), [cat.campoItens]: p.linhas.map(l => `${l.quantidade} × ${l.descricao}`).join('; ') }
         if (cat.campoValor) respostas[cat.campoValor] = reais(p.total)

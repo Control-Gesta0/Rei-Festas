@@ -182,6 +182,23 @@ evidência em `docs/cliente/diagnostico.md` §7.1 e §7.2.
 - Valor de reposição dos 209 itens, quantidade de 34 e preço de 9 no VHSYS.
 - Aprovação do documento `docs/cliente/Rey-Festas-Projeto-CRM-e-IA.pdf`.
 
+## Jornada no GHL termina no aceite (25/10/2026)
+
+| # | Decisão | Origem |
+|---|---|---|
+| D16 | A jornada no GHL vai até **Pedido fechado** (= o cliente aceitou o orçamento). Reserva, sinal, saldo e recebimento são tratados **no VHSYS**. "Aguardando pagamento" virou "Pedido fechado" (mesmo id) e "Reservado" sai do funil | mestre, 25/10 |
+| D17 | Os lembretes de saldo, véspera e devolução (D13) **continuam no GHL**, disparados pelos campos de data do card | mestre, 25/10 |
+| D18 | Card em Pedido fechado → **cliente e orçamento** criados no VHSYS (`agente-ia/lib/erp-sync.ts`). Atualiza D4: o gatilho deixa de ser "Ganho" e passa a ser "Pedido fechado"; a integração marca a oportunidade como Ganho | mestre, 25/10 |
+
+- O orçamento leva os itens com código do catálogo (o `cod_produto` da carga de 209
+  itens), quantidade e preço da linha do card (ou o da tabela). Item sem código vai na
+  observação para a Karol conferir.
+- Cadastro existente no VHSYS **não é sobrescrito**: a integração só reaproveita o id.
+- Idempotente: card com "Nº do pedido no ERP" preenchido não gera outro orçamento.
+- O app Locações não tem API: a Karol lança a locação a partir do orçamento.
+- Pendência: conferir os nomes dos campos do orçamento na API v2 no primeiro envio real
+  (a documentação não abriu no ambiente da implantação). Começa em `ERP_MODO` ensaio.
+
 ## Plano de contas aplicado no VHSYS (24/10/2026)
 
 - Proposta de 97 categorias **aprovada** pela Rey Festas.

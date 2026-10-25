@@ -55,6 +55,10 @@ export interface GhlContact {
   contactName?: string
   phone?: string
   email?: string
+  address1?: string
+  city?: string
+  state?: string
+  postalCode?: string
   tags?: string[]
   customFields?: GhlCustomValue[]
 }
@@ -131,7 +135,14 @@ export interface GhlOpportunity {
   pipelineId: string
   pipelineStageId: string
   status?: string
+  monetaryValue?: number
+  contactId?: string
   customFields?: GhlCustomValue[]
+}
+
+export async function getOpportunity(id: string): Promise<GhlOpportunity> {
+  const r = await ghl<{ opportunity: GhlOpportunity }>('GET', `/opportunities/${encodeURIComponent(id)}`)
+  return r.opportunity
 }
 
 /**
@@ -156,8 +167,10 @@ export async function createOpportunity(contactId: string, pipelineId: string, s
 }
 
 /** PUT de oportunidade: custom field usa a chave `field_value` (não `value`) — ghl §A.12. */
-export async function updateOpportunity(id: string, patch: { pipelineStageId?: string; pipelineId?: string; customFields?: Array<{ id: string; value: unknown }> }): Promise<void> {
+export async function updateOpportunity(id: string, patch: { pipelineStageId?: string; pipelineId?: string; monetaryValue?: number; status?: 'open' | 'won' | 'lost'; customFields?: Array<{ id: string; value: unknown }> }): Promise<void> {
   const body: Record<string, unknown> = {}
+  if (patch.monetaryValue !== undefined) body.monetaryValue = patch.monetaryValue
+  if (patch.status) body.status = patch.status
   if (patch.pipelineStageId) body.pipelineStageId = patch.pipelineStageId
   if (patch.pipelineId) body.pipelineId = patch.pipelineId
   if (patch.customFields?.length) body.customFields = patch.customFields.map(v => ({ id: v.id, field_value: v.value }))
