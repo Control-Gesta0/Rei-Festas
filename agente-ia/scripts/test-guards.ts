@@ -89,6 +89,8 @@ async function main() {
   const { humanSpokeRecently: hs, ultimaInstancia } = await import('../lib/history')
   eq('instância da conversa', ultimaInstancia([{ id: 'a', direction: 'inbound', body: 'oi\nInstance Source: Operacional@' }]), 'Operacional@')
   eq('[System] com userId NÃO é humano', await hs([{ id: 'x', messageType: 'TYPE_SMS', direction: 'outbound', body: '[System]: Contact Instance Updated!', userId: 'u', dateAdded: new Date().toISOString() }]), false)
+  const agora = Date.now()
+  eq('humano antes do corte (reset de teste) não conta', await hs([{ id: 'h', messageType: 'TYPE_SMS', direction: 'outbound', body: 'Teste envio', userId: 'u', dateAdded: new Date(agora - 60000).toISOString() }], agora, agora - 1000), false)
   eq('custom provider entra', isChatMessage({ id: 'c', messageType: 'TYPE_CUSTOM_SMS' }), true)
   eq('e-mail não entra', isChatMessage({ id: 'e', messageType: 'TYPE_EMAIL' }), false)
 

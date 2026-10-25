@@ -62,8 +62,6 @@ export async function processContact(contactId: string, webhookId: string): Prom
       const target = lastInbound(history)
       if (!target) return pular('nenhuma mensagem do lead no histórico do GHL')
       if (await alreadyAnswered(contactId, target.id)) return
-      if (await humanSpokeRecently(conv.raw)) return pular('um humano respondeu pelo GHL nas últimas 6h — a IA não atropela')
-
       const bloco = blocoAtual(history)
       const textoTurno = bloco.map(m => m.text).join('\n')
 
@@ -75,6 +73,8 @@ export async function processContact(contactId: string, webhookId: string): Prom
         await logExec({ tipo: 'reset', leadId: contactId, nome, detalhe: 'reset de teste' })
         return
       }
+
+      if (await humanSpokeRecently(conv.raw, Date.now(), conv.corteMs)) return pular('um humano respondeu pelo GHL nas últimas 6h — a IA não atropela')
 
       const state = await getState(contactId)
 
