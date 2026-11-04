@@ -88,6 +88,20 @@ async function main() {
   eq('conversa real limpa', conv.map(m => `${m.dir}:${m.text}`), ['in:"Olá! Quero saber mais sobre a IA SDR. #C01"', 'out:Olá! Sou atendente da Control Gestão.', 'in:2'])
   const { humanSpokeRecently: hs, ultimaInstancia } = await import('../lib/history')
   eq('instância da conversa', ultimaInstancia([{ id: 'a', direction: 'inbound', body: 'oi\nInstance Source: Operacional@' }]), 'Operacional@')
+  eq('troca Zaptos → Stevo: instância antiga no histórico não vale', ultimaInstancia([
+    { id: 'a', messageType: 'TYPE_SMS', direction: 'inbound', body: 'oi\nInstance Source: Atendimento' },
+    { id: 'b', messageType: 'TYPE_SMS', direction: 'outbound', body: '#switch:Atendimento\nOlá!' },
+    { id: 'c', messageType: 'TYPE_SMS', direction: 'inbound', body: 'quero alugar 50 cadeiras' },
+  ]), null)
+  eq('comando e [System] depois da mensagem não apagam a instância', ultimaInstancia([
+    { id: 'a', messageType: 'TYPE_SMS', direction: 'inbound', body: 'oi\nInstance Source: Atendimento' },
+    { id: 'b', messageType: 'TYPE_SMS', direction: 'inbound', body: '#attpic' },
+    { id: 'c', messageType: 'TYPE_SMS', direction: 'inbound', body: '[System]: Contact photo updated successfully.' },
+  ]), 'Atendimento')
+  eq('nota interna não conta como mensagem do lead', ultimaInstancia([
+    { id: 'a', messageType: 'TYPE_SMS', direction: 'inbound', body: 'oi\nInstance Source: Atendimento' },
+    { id: 'b', messageType: 'TYPE_INTERNAL_COMMENT', direction: 'inbound', body: 'nota da equipe' },
+  ]), 'Atendimento')
   eq('[System] com userId NÃO é humano', await hs([{ id: 'x', messageType: 'TYPE_SMS', direction: 'outbound', body: '[System]: Contact Instance Updated!', userId: 'u', dateAdded: new Date().toISOString() }]), false)
   const agora = Date.now()
   eq('humano antes do corte (reset de teste) não conta', await hs([{ id: 'h', messageType: 'TYPE_SMS', direction: 'outbound', body: 'Teste envio', userId: 'u', dateAdded: new Date(agora - 60000).toISOString() }], agora, agora - 1000), false)

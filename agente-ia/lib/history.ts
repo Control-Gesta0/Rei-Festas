@@ -84,12 +84,20 @@ export async function toChatMsgs(raw: GhlMessage[], opts: { corteMs?: number; pr
 
 export interface Conversa { conversationId: string | null; raw: GhlMessage[]; msgs: ChatMsg[]; instancia: string | null; corteMs: number }
 
-/** Instância (número) em que o lead escreveu por último: a IA responde por ela. */
+/**
+ * Instância (número) em que o lead escreveu por último: a IA responde por ela.
+ * Olha SÓ a última mensagem do lead (pula comando e aviso de sistema). Sem
+ * "Instance Source" nela = provedor sem instâncias (Stevo) → sem #switch.
+ * Varrer o histórico pegaria a instância de mensagens antigas da Zaptos e
+ * mandaria "#switch:..." literal para quem já tinha conversado antes da troca.
+ */
 export function ultimaInstancia(raw: GhlMessage[]): string | null {
   for (let i = raw.length - 1; i >= 0; i--) {
-    if (raw[i].direction !== 'inbound') continue
-    const inst = instanciaDaMensagem(raw[i].body || '')
-    if (inst) return inst
+    const m = raw[i]
+    if (m.direction !== 'inbound' || (m.messageType && !isChatMessage(m))) continue
+    const body = m.body || ''
+    if (!body.trim() || ehComandoOuSistema(body)) continue
+    return instanciaDaMensagem(body)
   }
   return null
 }
