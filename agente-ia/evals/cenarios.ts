@@ -24,7 +24,8 @@ const naEtapa = (nome: string) => ({ nome: `card em "${nome}"`, fn: (w: World) =
 const disse = (nome: string, re: RegExp) => ({ nome, fn: (_w: World, t: Turno[]) => t.some(x => re.test(x.resposta)) })
 const naoDisse = (nome: string, re: RegExp) => ({ nome, fn: (_w: World, t: Turno[]) => t.every(x => !re.test(x.resposta)) })
 
-const ABERTURA = 'Olá, boa tarde! Tudo bem? Aqui é a assistente virtual da Rey Festas 😊 Em que posso te ajudar?'
+const CATALOGO = /reyfestas\.com\.br\/locacao-para-festas/
+const ABERTURA = `Olá, boa tarde! Tudo bem? Aqui é a assistente virtual da Rey Festas 😊 Boas-vindas! O nosso catálogo de locação está aqui: ${CRM_MAP.catalogoUrl} Fico à disposição! Em que posso te ajudar?`
 
 export const CENARIOS: Cenario[] = [
   {
@@ -32,7 +33,7 @@ export const CENARIOS: Cenario[] = [
     porta: 'locacao',
     nomeContato: 'Juliana',
     msgs: ['Oi, quanto fica o aluguel de 5 jogos de mesa com cadeira pra sábado?'],
-    checks: [...base, naoFinalizou, disse('citou o preço do jogo (R$ 20,00 ou R$ 26,00)', /20,00|26,00/)],
+    checks: [...base, naoFinalizou, disse('citou o preço do jogo (R$ 20,00 ou R$ 26,00)', /20,00|26,00/), disse('1ª mensagem com o link do catálogo', CATALOGO)],
     criterios: [
       'Responde o preço do jogo de mesa ANTES de fazer qualquer pergunta',
       'Deixa claro que o frete é à parte ou que a equipe confirma disponibilidade e valor final',
@@ -259,9 +260,38 @@ export const CENARIOS: Cenario[] = [
       ...base, naoFinalizou, naoUsou('calcular_tabela'),
       disse('disse que é a assistente virtual', /assistente virtual/i),
       disse('perguntou em que pode ajudar', /(em que|como) posso (te )?ajudar/i),
-      naoDisse('não presumiu evento, festa ou orçamento', /evento|\bfestas?\b(?<!rey festas)|or[cç]amento|cat[aá]logo/i),
+      disse('mandou o link do catálogo', CATALOGO),
+      disse('se colocou à disposição', /fico [àa] disposi[çc][ãa]o/i),
+      {
+        nome: 'não presumiu evento, festa ou orçamento (fora as boas-vindas com o catálogo)',
+        fn: (_w: World, t: Turno[]) => t.every(x => !/evento|\bfestas?\b(?<!rey festas)|or[cç]amento/i.test(x.resposta.replace(/Boas-vindas![^!]*Fico à disposição!/, ''))),
+      },
     ],
-    criterios: ['Cumprimenta como a loja e se apresenta como assistente virtual', 'Só pergunta em que pode ajudar, sem presumir o assunto'],
+    criterios: ['Cumprimenta como a loja, se apresenta como assistente virtual, dá as boas-vindas com o link do catálogo e se coloca à disposição', 'Só pergunta em que pode ajudar, sem presumir o assunto'],
+  },
+  {
+    // Conversa real de 06/11/2026: a pessoa só estava conhecendo a loja e a IA empurrava pergunta em toda mensagem
+    id: 'explorando-sem-pressao',
+    porta: 'locacao',
+    historico: [
+      ['in', 'Oi'], ['out', ABERTURA],
+      ['in', 'Vcs trabalham com aluguel de mesas e cadeiras'],
+      ['out', 'Aqui na Rey Festas a gente tem mesa e cadeira no catálogo, o jogo de mesa com 4 cadeiras sai R$ 20,00 cada. Nossa equipe confere a disponibilidade e confirma o valor final.'],
+      ['in', 'Quais os modelos que vcs tem?'],
+      ['out', 'Tem dois modelos de jogo de mesa: sem braço, R$ 20,00, e com braço, R$ 26,00. As cadeiras avulsas saem R$ 4,00 sem braço e R$ 6,00 com braço.'],
+    ],
+    msgs: ['Vcs tem rechaud também?'],
+    checks: [
+      ...base, naoFinalizou,
+      disse('respondeu sobre o rechaud', /rechaud/i),
+      naoDisse('não repetiu o aviso da equipe', /equipe[^.!?]*confirm/i),
+      naoDisse('não empurrou quantidade nem modelo', /(quantos|quantas|qual (modelo|deles)|qual voc[eê] prefere)[^?]*\?/i),
+    ],
+    criterios: [
+      'Responde que tem rechaud, com os modelos e valores, de forma direta e natural',
+      'Não repete a abertura "Aqui na Rey Festas a gente tem ... no catálogo" nem o aviso de que a equipe confirma (já foram ditos)',
+      'Não pressiona: não termina perguntando quantidade ou modelo; no máximo um convite leve para passar as quantidades quando quiser',
+    ],
   },
   {
     id: 'pede-orcamento',
@@ -270,16 +300,15 @@ export const CENARIOS: Cenario[] = [
     msgs: ['Queria fazer um orçamento'],
     checks: [
       ...base, naoFinalizou,
-      disse('mandou o link do catálogo', /wa\.me\/c\/5511981223778/),
       naoDisse('não perguntou tipo de evento', /tipo de evento|que evento/i),
     ],
-    criterios: ['Pede os itens com as quantidades', 'Manda o link do catálogo na mesma mensagem'],
+    criterios: ['Pede os itens com as quantidades', 'Não repete o link do catálogo (já foi na primeira mensagem); pode lembrar que ele está na conversa'],
   },
   {
     id: 'devolucao',
     porta: 'locacao',
     msgs: ['Boa tarde, queria combinar a devolução do material que aluguei semana passada'],
-    checks: [...base, finalizou('ja_e_cliente'), naoUsou('calcular_tabela'), naoDisse('não mandou catálogo', /wa\.me\/c\//)],
+    checks: [...base, finalizou('ja_e_cliente'), naoUsou('calcular_tabela'), naoDisse('não mandou catálogo', CATALOGO)],
     criterios: ['Diz que vai passar para a equipe', 'Não tenta vender nem pede itens ou cadastro'],
   },
   {
@@ -295,7 +324,7 @@ export const CENARIOS: Cenario[] = [
     ],
     criterios: [
       'Diz que a Rey Festas tem mesa e cadeira no catálogo (pode ser o jogo de mesa com cadeiras ou modelos de mesa e de cadeira)',
-      'Segue o atendimento com uma pergunta que ajuda a montar o pedido (quantidade, modelo ou data), sem encerrar a conversa nem dizer que vai passar para outra pessoa agora',
+      'Segue o atendimento (uma pergunta que ajuda a montar o pedido ou um convite leve para passar as quantidades), sem encerrar a conversa nem dizer que vai passar para outra pessoa agora',
     ],
   },
   {
@@ -304,7 +333,7 @@ export const CENARIOS: Cenario[] = [
     historico: [
       ['in', 'Boa tarde'], ['out', ABERTURA],
       ['in', 'Boa tarde vcs fazem locação de equipamentos para festas?'],
-      ['out', 'Fazemos sim, a Rey Festas aluga mesas, cadeiras, toalhas, louças, talheres, copos, taças, rechauds e itens de buffet. Me conta quais itens e quantas unidades você precisa. O catálogo completo está aqui: https://wa.me/c/5511981223778'],
+      ['out', 'Fazemos sim, a Rey Festas aluga mesas, cadeiras, toalhas, louças, talheres, copos, taças, rechauds e itens de buffet. Me conta quais itens e quantas unidades você precisa.'],
     ],
     msgs: ['Ah legal\n\nPreciso de de 10 mesas com 4 cadeiras cada\n\nO eventos sera nos dias 7 e 8/11'],
     // como no VHSYS de produção: jogo de mesa sem estoque cadastrado na agenda

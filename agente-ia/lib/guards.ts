@@ -109,7 +109,31 @@ export function comApresentacao(text: string): string {
   return resto ? `${m[0]} ${apres} ${resto}` : `${m[0]} ${apres}`
 }
 
+/**
+ * Primeira mensagem: boas-vindas, link do catálogo e "Fico à disposição!" logo depois da
+ * apresentação (pedido do cliente, 06/11/2026). Entra pelo código, depois das travas: a
+ * trava de tom continua barrando "fico à disposição" escrito pelo modelo nas outras mensagens.
+ * Já tem o link: não mexe.
+ */
+export function comCatalogo(text: string, url: string): string {
+  if (!url || text.includes(url)) return text
+  const bloco = `Boas-vindas! O nosso catálogo de locação está aqui: ${url} Fico à disposição!`
+  const m = /assistente virtual da Rey Festas(?:\s*\p{Extended_Pictographic}\uFE0F?)*[.!]?/iu.exec(text)
+  if (!m) return `${bloco} ${text}`.trim()
+  const fim = m.index + m[0].length
+  const resto = text.slice(fim).trim()
+  return resto ? `${text.slice(0, fim)} ${bloco} ${resto}` : `${text.slice(0, fim)} ${bloco}`
+}
+
 export const EQUIPE_CONFIRMA = 'valor sem dizer que a equipe confirma'
+
+/**
+ * A conversa já avisou que a equipe confere a disponibilidade e confirma o valor?
+ * Depois do primeiro aviso, a trava não repete a frase a cada preço (repetir soa robô).
+ */
+export function jaAvisouEquipe(textosDaIa: string[]): boolean {
+  return textosDaIa.some(t => /\bequipe\b[^.!?]*\bconfirm|\bconfirm[^.!?]*\bequipe\b/i.test(t))
+}
 
 /** Falou valor e esqueceu quem confirma: a frase entra antes da pergunta final (ou no fim). */
 export function comEquipeConfirma(text: string): string {

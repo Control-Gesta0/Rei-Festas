@@ -3,7 +3,7 @@ import path from 'path'
 import OpenAI from 'openai'
 import { CRM_MAP, type Porta } from './crm-map'
 import { addUsage, emptyUsage, type Usage } from './execlog'
-import { checkReply as checkReplyBase, comCumprimento, comEquipeConfirma, EQUIPE_CONFIRMA, keepLastQuestion, semTravessao, type Violation } from './guards'
+import { checkReply as checkReplyBase, comCatalogo, comCumprimento, comEquipeConfirma, EQUIPE_CONFIRMA, jaAvisouEquipe, keepLastQuestion, semTravessao, type Violation } from './guards'
 import { falouDaAgenda, perguntouDisponibilidade } from './locacao'
 import { formatSlot } from './slots'
 import { hojeNoFuso, pedidoUrgentePronto, proximosDias } from './datas'
@@ -112,8 +112,8 @@ export function createBrain(opts: LlmOptions) {
   }
 
   /** Reescreve uma vez se a trava pegou algo; se insistir, sai o texto seguro. */
-  async function enforce(messages: Msg[], text: string, usage: Usage, handoff: boolean, lastLead: string, extra: (t: string) => Violation[] = () => []): Promise<{ text: string; guard: string[] }> {
-    const checkReply = (t: string) => [...checkReplyBase(t), ...extra(t)]
+  async function enforce(messages: Msg[], text: string, usage: Usage, handoff: boolean, lastLead: string, extra: (t: string) => Violation[] = () => [], equipeJaAvisada = false): Promise<{ text: string; guard: string[] }> {
+    const checkReply = (t: string) => [...checkReplyBase(t), ...extra(t)].filter(v => !(equipeJaAvisada && v.regra === EQUIPE_CONFIRMA))
     // Conserto em código para as travas mecânicas (pergunta a mais, valor sem "a equipe confirma"): sem reescrita, sem texto seguro
     const consertar = (t: string, v: Violation[]): string | null => {
       if (!v.every(x => x.regra === 'mais de uma pergunta' || x.regra === EQUIPE_CONFIRMA || x.regra === 'travessão')) return null
@@ -215,10 +215,13 @@ export function createBrain(opts: LlmOptions) {
         ...(!consultou && falouDaAgenda(t) ? [{ regra: 'falou da agenda sem consultar_disponibilidade', trecho: falouDaAgenda(t)! }] : []),
         ...(!leadFalouKarol && /\bkarol\b/i.test(t) ? [{ regra: 'citou a Karol: para o cliente é "nossa equipe"', trecho: 'Karol' }] : []),
       ]
-      const safe = await enforce(messages, text, usage, handoff, ctx.lastLeadText, semAgenda)
+      const equipeJaAvisada = jaAvisouEquipe(history.filter(m => m.dir === 'out').map(m => m.text))
+      const safe = await enforce(messages, text, usage, handoff, ctx.lastLeadText, semAgenda, equipeJaAvisada)
       // Barrada duas vezes: em vez do texto genérico, o pedido anotado + a próxima pergunta
       if (!handoff && safe.guard.includes('fallback')) safe.text = textoSeguroDoPedido(ctx.porta, await ctx.port.getState(), safe.text)
       if (lead.primeiroContatoDaPorta) safe.text = comCumprimento(safe.text, horaNoFuso(ctx.timezone), ctx.lastLeadText)
+      // Boas-vindas com o catálogo; quem já foi passado para a equipe (cliente, fornecedor, buffet) não recebe
+      if (lead.primeiroContatoDaPorta && !handoff) safe.text = comCatalogo(safe.text, CRM_MAP.catalogoUrl)
       if (!handoff) {
         const alerta = CRM_MAP.alertas.find(a => a.finaliza && a.re.test(ctx.lastLeadText) && a.finaliza.seResposta.test(safe.text))
         if (alerta?.finaliza) {

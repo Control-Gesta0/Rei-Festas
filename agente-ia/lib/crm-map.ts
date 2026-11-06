@@ -257,6 +257,9 @@ export const CRM_MAP = {
     },
   ] as Alerta[],
 
+  /** Catálogo de locação no site. Vai na 1ª mensagem de todo atendimento (pedido do cliente, 06/11/2026). */
+  catalogoUrl: 'https://reyfestas.com.br/locacao-para-festas/',
+
   textoSeguro: 'Entendi! Me conta quais itens e quantas unidades você precisa?',
   textoSeguroFinal: 'Obrigada! Já deixei tudo anotado e a nossa equipe continua com você por aqui.',
 

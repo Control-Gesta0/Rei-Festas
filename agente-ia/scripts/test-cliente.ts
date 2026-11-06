@@ -6,7 +6,7 @@
 type Eq = (nome: string, got: unknown, want: unknown) => void
 
 export default async function testesCliente(eq: Eq): Promise<number> {
-  const { checkReply, comCumprimento, comEquipeConfirma, semTravessao, SO_AGRADECIMENTO } = await import('../lib/guards')
+  const { checkReply, comCatalogo, comCumprimento, comEquipeConfirma, contarPerguntas, jaAvisouEquipe, semTravessao, SO_AGRADECIMENTO } = await import('../lib/guards')
   const regras = (t: string) => [...new Set(checkReply(t).map(v => v.regra))]
 
   // ---------- Travas de texto ----------
@@ -46,6 +46,16 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   eq('cumprimento não duplica', comCumprimento('Olá, bom dia! Tudo bem? Temos sim.', 9), 'Olá, bom dia! Tudo bem? Aqui é a assistente virtual da Rey Festas 😊 Temos sim.')
   eq('apresentação não duplica', comCumprimento('Olá, bom dia! Tudo bem? Aqui é a assistente virtual da Rey Festas. Em que posso te ajudar?', 9), 'Olá, bom dia! Tudo bem? Aqui é a assistente virtual da Rey Festas. Em que posso te ajudar?')
   eq('apresentação sem "tudo bem"', comCumprimento('Oi, Ana! Temos sim.', 9), 'Oi, Ana! Aqui é a assistente virtual da Rey Festas 😊 Temos sim.')
+  const URL = 'https://reyfestas.com.br/locacao-para-festas/'
+  const BOAS = `Boas-vindas! O nosso catálogo de locação está aqui: ${URL} Fico à disposição!`
+  eq('catálogo entra depois da apresentação', comCatalogo('Olá, boa tarde! Tudo bem? Aqui é a assistente virtual da Rey Festas 😊 Em que posso te ajudar?', URL), `Olá, boa tarde! Tudo bem? Aqui é a assistente virtual da Rey Festas 😊 ${BOAS} Em que posso te ajudar?`)
+  eq('catálogo com apresentação terminada em ponto', comCatalogo('Olá, bom dia! Tudo bem? Aqui é a assistente virtual da Rey Festas. A mesa sai R$ 13,00 cada.', URL), `Olá, bom dia! Tudo bem? Aqui é a assistente virtual da Rey Festas. ${BOAS} A mesa sai R$ 13,00 cada.`)
+  eq('catálogo não duplica', comCatalogo(`Oi! O catálogo: ${URL}`, URL), `Oi! O catálogo: ${URL}`)
+  eq('catálogo sem apresentação vai no começo', comCatalogo('Temos sim.', URL), `${BOAS} Temos sim.`)
+  eq('boas-vindas não contam pergunta a mais', contarPerguntas(comCatalogo('Olá, boa tarde! Tudo bem? Aqui é a assistente virtual da Rey Festas 😊 Em que posso te ajudar?', URL)), 1)
+  eq('aviso da equipe já dado na conversa', jaAvisouEquipe(['Oi!', 'O jogo sai R$ 20,00. Nossa equipe confere a disponibilidade e confirma o valor final.']), true)
+  eq('aviso da equipe ainda não dado', jaAvisouEquipe(['Oi!', 'O jogo sai R$ 20,00.', 'A equipe vai te chamar.']), false)
+  eq('link do catálogo não cai na trava de pagamento', regras(BOAS).filter(r => r === 'mandou dado de pagamento'), [])
 
   // ---------- Datas ----------
   const { parseDataBR, conferirEvidenciaData, formatarData, pedidoUrgentePronto, proximoDiaDaSemana, dataPelaEvidencia } = await import('../lib/datas')
