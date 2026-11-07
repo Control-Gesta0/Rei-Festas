@@ -295,11 +295,14 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   const { CRM_MAP: MAPA } = await import('../lib/crm-map')
   const portaL = MAPA.portas[0]
   const snapB = tl.snapshot(portaL, { servico: 'buffet', respostas: { convidados: '100' } })
-  eq('buffet: roteiro são data, local, pessoas e horário', [...snapB.preenchidos, ...snapB.abertos.map(c => ({ campo: c }))].map(x => x.campo.key).sort(), ['convidados', 'dataEvento', 'enderecoEvento', 'horarioEvento'])
-  eq('buffet: local e horário valem sem "entrega"', snapB.abertos.map(c => c.key), ['dataEvento', 'enderecoEvento', 'horarioEvento'])
-  eq('buffet: local tem nome e pergunta próprios', [snapB.abertos[1].name, snapB.abertos[1].pergunta], ['Local do evento', 'Onde vai ser o evento?'])
+  eq('buffet: roteiro são tipo, data, local, pessoas e horário', [...snapB.preenchidos, ...snapB.abertos.map(c => ({ campo: c }))].map(x => x.campo.key).sort(), ['convidados', 'dataEvento', 'enderecoEvento', 'horarioEvento', 'tipoEvento'])
+  eq('buffet: começa pelo tipo de evento; local e horário valem sem "entrega"', snapB.abertos.map(c => c.key), ['tipoEvento', 'dataEvento', 'enderecoEvento', 'horarioEvento'])
+  eq('buffet: tipo de evento com os exemplos do Noel', snapB.abertos[0].pergunta, 'Que tipo de evento vai ser? Aniversário, bodas, casamento, festa de empresa…')
+  eq('buffet: local tem nome e pergunta próprios', [snapB.abertos[2].name, snapB.abertos[2].pergunta], ['Local do evento', 'Onde vai ser o evento?'])
   eq('buffet: contexto proíbe espeto e quilo', /NÃO pergunte itens, cardápio, quantidades, espetos nem quilos/.test(tl.describeOpen(portaL, snapB)), true)
-  const snapOk = tl.snapshot(portaL, { servico: 'buffet', respostas: { convidados: '100', dataEvento: '12/12/2026', enderecoEvento: 'Atibaia', horarioEvento: '13h' } })
+  const snapOk = tl.snapshot(portaL, { servico: 'buffet', respostas: { tipoEvento: 'Aniversário', convidados: '100', dataEvento: '12/12/2026', enderecoEvento: 'Atibaia', horarioEvento: '13h' } })
+  eq('buffet: sinal pega churrasco e buffet', ['Churrasco para 100 pessoas', 'Vcs fazem serviço de buffet?', 'tem churrasqueiro?'].map(t => MAPA.buffet.sinal.test(t)), [true, true, true])
+  eq('buffet: utensílio de buffet é locação', ['quero alugar utensílios de buffet', 'itens pra buffet'].map(t => MAPA.buffet.naoE.test(t)), [true, true])
   eq('buffet completo manda finalizar como outro_servico', /finalizar_atendimento\(outro_servico\) AGORA/.test(tl.describeOpen(portaL, snapOk)), true)
   eq('locação continua com o roteiro de itens', tl.snapshot(portaL, {}).abertos[0].key, 'itens')
 

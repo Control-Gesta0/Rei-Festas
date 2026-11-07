@@ -315,7 +315,7 @@ export function snapshot(porta: Porta, state: LeadState): Snapshot {
 export function describeOpen(porta: Porta, s: Snapshot): string {
   if (s.buffet) {
     const regra = 'BUFFET: orçamento fechado, quem calcula é a nossa equipe. NÃO pergunte itens, cardápio, quantidades, espetos nem quilos.'
-    if (!s.abertos.length) return `${regra} Dados completos (data, local, pessoas e horário). Chame finalizar_atendimento(outro_servico) AGORA e diga, sem pergunta, que a nossa equipe monta o orçamento do buffet e manda por aqui.`
+    if (!s.abertos.length) return `${regra} Dados completos (tipo de evento, data, local, pessoas e horário). Chame finalizar_atendimento(outro_servico) AGORA e diga, sem pergunta, que a nossa equipe monta o orçamento do buffet e manda por aqui.`
     const prox = s.abertos[0]
     return `${regra} Faltam ${s.abertos.length} (${s.abertos.map(c => c.name).join('; ')}). Próximo → ${prox.name} ("${prox.pergunta}"). Uma pergunta por vez; se a pessoa já disse algo em aberto, grave ANTES de perguntar.`
   }
@@ -391,7 +391,7 @@ export async function aplicarFinalizacao(ctx: ToolCtx, motivo: string, resumoRaw
     ...(urgente && CRM_MAP.finalizar.tagUrgente ? [CRM_MAP.finalizar.tagUrgente] : []),
   ]
   if (extras.length) await port.addTags([...new Set(extras)])
-  // Qualificado sem reunião marcada (ou buffet com os 4 dados): a oportunidade vai para "Pronto para orçamento"
+  // Qualificado sem reunião marcada (ou buffet com os 5 dados): a oportunidade vai para "Pronto para orçamento"
   if ((motivo === 'qualificado' || (motivo === 'outro_servico' && state.servico === 'buffet')) && CRM_MAP.etapaQualificadoId) {
     try {
       if (!podeMover(await port.getLead(), CRM_MAP.etapaQualificadoId)) await port.moveStage(CRM_MAP.etapaQualificadoId)
@@ -535,7 +535,11 @@ export async function runTool(ctx: ToolCtx, name: string, input: Record<string, 
       case 'finalizar_atendimento': {
         const motivo = String(input.motivo || '') as Motivo
         if (!MOTIVOS.includes(motivo)) return err(`Motivo inválido: ${motivo}`)
-        const state = await port.getState()
+        let state = await port.getState()
+        // Buffet sem a marca (o modelo não chamou abrir_oportunidade com "buffet"): a conversa decide, não o modelo
+        if (motivo === 'outro_servico' && state.servico !== 'buffet' && CRM_MAP.buffet.sinal.test(ctx.leadText) && !CRM_MAP.buffet.naoE.test(ctx.leadText)) {
+          state = await port.patchState({ servico: 'buffet' })
+        }
         if (motivo === 'outro_servico' && state.servico === 'buffet') {
           const snapB = snapshot(porta, state)
           if (snapB.abertos.length) return err(`Ainda falta: ${snapB.abertos.map(c => c.name).join('; ')}. ${describeOpen(porta, snapB)}`)
@@ -574,7 +578,7 @@ export async function runTool(ctx: ToolCtx, name: string, input: Record<string, 
       }
 
       case 'consultar_disponibilidade': {
-        if ((await port.getState()).servico === 'buffet') return err('Buffet é orçamento fechado: não consulte itens. Colete só data, local, pessoas e horário.')
+        if ((await port.getState()).servico === 'buffet') return err('Buffet é orçamento fechado: não consulte itens. Colete só tipo de evento, data, local, pessoas e horário.')
         const cat = CRM_MAP.catalogo
         if (!cat) return err('Catálogo não configurado.')
         if (!port.disponibilidade) return ok('A agenda de reservas não está ligada. Não fale de disponibilidade: diga que a nossa equipe confere para a data.')
@@ -606,7 +610,7 @@ export async function runTool(ctx: ToolCtx, name: string, input: Record<string, 
       }
 
       case 'calcular_tabela': {
-        if ((await port.getState()).servico === 'buffet') return err('Buffet é orçamento fechado, quem calcula é a nossa equipe: NÃO monte itens nem quantidades. Colete só data, local, pessoas e horário.')
+        if ((await port.getState()).servico === 'buffet') return err('Buffet é orçamento fechado, quem calcula é a nossa equipe: NÃO monte itens nem quantidades. Colete só tipo de evento, data, local, pessoas e horário.')
         const cat = CRM_MAP.catalogo
         if (!cat) return err('Catálogo não configurado.')
         // Linha repetida com a mesma evidência é eco do modelo, não pedido em dobro ("50 pratos... e mais 30 pratos" tem evidências diferentes)
