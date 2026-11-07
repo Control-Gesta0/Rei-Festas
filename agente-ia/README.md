@@ -17,7 +17,7 @@ Cliente manda mensagem no WhatsApp (instância "Atendimento")
          (exceção: "obrigado" até 6h depois do handoff, sem humano na conversa → "Disponha! 😉", uma vez)
       2. espera 10s (rajada de mensagens vira UMA resposta)
       3. lê a conversa no GHL (áudio e foto viram texto)
-      4. alguém da equipe respondeu nas últimas 6h? a IA não entra
+      4. alguém da equipe respondeu nas últimas 6h (GHL ou celular)? a IA não entra
       5. GPT + ferramentas: soma o pedido pela tabela (calcular_tabela), grava
          os campos do card, move a etapa (só para frente) e finaliza
       6. travas em código (disponibilidade, Pix, desconto, multa, travessão)
@@ -41,7 +41,7 @@ Com `GATE_TAG` vazio, a IA atende quem escrever, sem depender de tag. Quem decid
 | Situação | O que a IA faz |
 |---|---|
 | Tag `atendimento-humano` (equipe, motorista, parceiros) | nunca responde |
-| Equipe respondeu pelo GHL nas últimas 6h | não atropela |
+| Equipe respondeu nas últimas 6h, pelo GHL **ou pelo celular** (qualquer saída que não foi a IA) | não atropela |
 | Card aberto em Pronto para orçamento, Orçamento enviado ou Pedido fechado | fica quieta: o pedido é da equipe |
 | Passou para a equipe há menos de `SILENCIO_POS_HANDOFF_H` (24h) | fica quieta (só o "Disponha!") |
 | Nunca atendido pela IA, ou conversa parada há `NOVO_CICLO_APOS_DIAS` (3) | atendimento novo, que começa na mensagem atual (o histórico antigo não entra) |

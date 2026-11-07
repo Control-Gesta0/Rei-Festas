@@ -86,7 +86,7 @@ async function main() {
     { id: '5', messageType: 'TYPE_SMS', direction: 'inbound', body: '2\n\nInstance Source: Operacional@', dateAdded: '2026-09-23T11:08:04Z' },
   ], { processarMidiaDesde: 99 })
   eq('conversa real limpa', conv.map(m => `${m.dir}:${m.text}`), ['in:"Olá! Quero saber mais sobre a IA SDR. #C01"', 'out:Olá! Sou atendente da Control Gestão.', 'in:2'])
-  const { humanSpokeRecently: hs, ultimaInstancia } = await import('../lib/history')
+  const { humanSpokeRecently: hs, saidasCandidatasAHumano: candidatas, ultimaInstancia } = await import('../lib/history')
   eq('instância da conversa', ultimaInstancia([{ id: 'a', direction: 'inbound', body: 'oi\nInstance Source: Operacional@' }]), 'Operacional@')
   eq('troca Zaptos → Stevo: instância antiga no histórico não vale', ultimaInstancia([
     { id: 'a', messageType: 'TYPE_SMS', direction: 'inbound', body: 'oi\nInstance Source: Atendimento' },
@@ -104,6 +104,15 @@ async function main() {
   ]), 'Atendimento')
   eq('[System] com userId NÃO é humano', await hs([{ id: 'x', messageType: 'TYPE_SMS', direction: 'outbound', body: '[System]: Contact Instance Updated!', userId: 'u', dateAdded: new Date().toISOString() }]), false)
   const agora = Date.now()
+  const agoraC = Date.now()
+  eq('resposta pelo celular (sem userId) conta como possível humano', candidatas([{ id: 'cel', messageType: 'TYPE_SMS', direction: 'outbound', body: 'Certo, fica R$ 14,00 das cadeiras.', dateAdded: new Date(agoraC - 60000).toISOString() }], agoraC).map(m => m.id), ['cel'])
+  eq('áudio pelo celular (sem texto) também conta', candidatas([{ id: 'aud', messageType: 'TYPE_SMS', direction: 'outbound', body: '', attachments: ['x.ogg'], dateAdded: new Date(agoraC - 60000).toISOString() }], agoraC).map(m => m.id), ['aud'])
+  eq('saída de mais de 6h não conta', candidatas([{ id: 'velha', messageType: 'TYPE_SMS', direction: 'outbound', body: 'oi', dateAdded: new Date(agoraC - 7 * 3600e3).toISOString() }], agoraC).length, 0)
+  eq('entrada do lead não conta', candidatas([{ id: 'in', messageType: 'TYPE_SMS', direction: 'inbound', body: 'oi', dateAdded: new Date(agoraC).toISOString() }], agoraC).length, 0)
+  const { digestoTexto } = await import('../lib/history')
+  eq('impressão do texto ignora espaço e maiúscula', digestoTexto('Oi,  tudo BEM?') === digestoTexto('oi, tudo bem?'), true)
+  eq('impressão do texto ignora o #switch', digestoTexto('#switch:Atendimento\nOi!') === digestoTexto('Oi!'), true)
+  eq('textos diferentes, impressões diferentes', digestoTexto('Oi!') === digestoTexto('Olá!'), false)
   eq('humano antes do corte (reset de teste) não conta', await hs([{ id: 'h', messageType: 'TYPE_SMS', direction: 'outbound', body: 'Teste envio', userId: 'u', dateAdded: new Date(agora - 60000).toISOString() }], agora, agora - 1000), false)
   eq('custom provider entra', isChatMessage({ id: 'c', messageType: 'TYPE_CUSTOM_SMS' }), true)
   eq('e-mail não entra', isChatMessage({ id: 'e', messageType: 'TYPE_EMAIL' }), false)

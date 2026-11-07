@@ -17,6 +17,6 @@ export async function sendReply(contactId: string, text: string, instancia: stri
   const usar = process.env.USAR_INSTANCIA !== '0'
   const inst = usar ? (process.env.WHATSAPP_INSTANCIA || instancia) : null
   const r = await sendMessage(contactId, comInstancia(body, inst))
-  await rememberSent(r.messageId)
+  await rememberSent(r.messageId, body)
   return `enviado${inst ? ` via ${inst}` : ''} (${r.messageId || 'sem id'})`
 }
