@@ -2,7 +2,7 @@ import { CONFIG } from './config'
 import { logExec } from './execlog'
 import { contactName, contactTags, getContact } from './ghl'
 import { SO_AGRADECIMENTO } from './guards'
-import { getHydratedHistory, type ChatMsg } from './history'
+import { foiDaIa, getHydratedHistory, type ChatMsg } from './history'
 import { k, redis } from './redis'
 import { getState, patchState, type LeadState } from './state'
 import { sendReply } from './transport'
@@ -87,7 +87,10 @@ export async function rodarFollowups(agora = Date.now(), max = 25): Promise<{ en
       const state = await getState(contactId)
       const conv = await getHydratedHistory(contactId)
       const enviadas = new Set<string>()
-      for (const m of conv.msgs.filter(x => x.dir === 'out').slice(-3)) if (await redis.get(k('enviada', m.id))) enviadas.add(m.id)
+      for (const m of conv.msgs.filter(x => x.dir === 'out').slice(-3)) {
+        const raw = conv.raw.find(x => x.id === m.id)
+        if (await foiDaIa({ id: m.id, body: raw?.body ?? m.text })) enviadas.add(m.id)
+      }
       const motivo = motivoSemFollowup({ state, tags: contactTags(contato), msgs: conv.msgs, iaEnviou: id => enviadas.has(id) })
       if (motivo) { r.pulados++; console.log(`[followup] ${contactId}: não enviou (${motivo})`); continue }
       const detail = await sendReply(contactId, textoFollowup(nome), conv.instancia)

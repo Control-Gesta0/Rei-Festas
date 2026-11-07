@@ -1,6 +1,7 @@
 import { findConversationId, getConversationMessages, sleep, type GhlMessage } from './ghl'
 import { mediaKindFromUrl, mediaToText } from './media'
 import { ehComandoOuSistema, instanciaDaMensagem, limparTexto } from './instancia'
+import { createHash } from 'crypto'
 import { k, redis } from './redis'
 
 /**
@@ -130,27 +131,48 @@ export async function markAnswered(contactId: string, inboundId: string): Promis
 
 // ---------- Quem enviou: IA × humano ----------
 
-export async function rememberSent(messageId: string | undefined): Promise<void> {
+/** Impressão do texto (sem espaços extras e sem diferença de maiúsculas): segunda prova de que foi a IA. */
+export function digestoTexto(texto: string): string {
+  return createHash('sha1').update((texto || '').replace(/^\s*#switch:\S+\s*/i, '').replace(/\s+/g, ' ').trim().toLowerCase()).digest('hex').slice(0, 20)
+}
+
+export async function rememberSent(messageId: string | undefined, texto = ''): Promise<void> {
   if (messageId) await redis.set(k('enviada', messageId), '1', { ex: TTL_S })
+  // Se o id que volta do envio não for o mesmo da conversa (eco do provedor), o texto ainda prova que foi a IA
+  if (texto.trim()) await redis.set(k('enviadaTxt', digestoTexto(texto)), '1', { ex: 7 * 86400 })
+}
+
+/** A saída foi da IA? Pelo id gravado no envio ou, se não bater, pelo texto. */
+export async function foiDaIa(m: { id: string; body?: string }): Promise<boolean> {
+  if (await redis.get(k('enviada', m.id))) return true
+  return !!(m.body || '').trim() && !!(await redis.get(k('enviadaTxt', digestoTexto(m.body || ''))))
 }
 
 const HUMANO_JANELA_MS = 6 * 3600 * 1000
 
 /**
- * Um humano do time respondeu pelo GHL nas últimas 6h? A IA recua.
- * Humano = outbound com userId que NÃO foi enviado pela IA.
- * (Mensagem de workflow/automação não tem userId e não conta como humano.)
- * Antes do corte (reset de teste) não conta: o teste recomeça do zero.
+ * Saídas recentes que PODEM ser da equipe: toda outbound de conversa nas últimas 6h, depois do
+ * corte, menos comando/aviso de sistema da integração. COM ou SEM userId: a resposta dada pelo
+ * próprio celular chega ao GHL pela Stevo sem usuário do GHL e também é a equipe falando
+ * (visto em 07/11/2026). Quem separa a IA da equipe é o registro do que a IA enviou (rememberSent).
  */
-export async function humanSpokeRecently(raw: GhlMessage[], now = Date.now(), corteMs = 0): Promise<boolean> {
-  const recentes = raw.filter(m =>
-    isChatMessage(m) && m.direction === 'outbound' && m.userId &&
+export function saidasCandidatasAHumano(raw: GhlMessage[], now = Date.now(), corteMs = 0): GhlMessage[] {
+  return raw.filter(m =>
+    isChatMessage(m) && m.direction === 'outbound' &&
     // comando/sistema da integração e mensagem de bot (#switch) não são humano falando
     !ehComandoOuSistema(m.body || '') && !/^\s*#switch:/i.test(m.body || '') &&
     now - (Date.parse(m.dateAdded || '') || 0) < HUMANO_JANELA_MS &&
     (Date.parse(m.dateAdded || '') || 0) >= corteMs)
+}
+
+/**
+ * Alguém da equipe respondeu nas últimas 6h (pelo GHL ou pelo celular)? A IA recua.
+ * Humano = outbound que NÃO foi enviada pela IA. Antes do corte (reset de teste) não conta.
+ */
+export async function humanSpokeRecently(raw: GhlMessage[], now = Date.now(), corteMs = 0): Promise<boolean> {
+  const recentes = saidasCandidatasAHumano(raw, now, corteMs)
   for (const m of recentes) {
-    if (!(await redis.get(k('enviada', m.id)))) return true
+    if (!(await foiDaIa(m))) return true
   }
   return false
 }
