@@ -289,5 +289,19 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   eq('follow-up: lead só agradeceu = não manda', fu2.motivoSemFollowup({ state: {}, tags: [], msgs: [m('l1', 'in', T0 - H, 'Ok obrigado'), m('ia1', 'out', T0 - H)], iaEnviou: daIa }), 'o lead só agradeceu')
   eq('follow-up: contato da equipe = não manda', fu2.motivoSemFollowup({ state: {}, tags: ['atendimento-humano'], msgs: conv, iaEnviou: daIa }) !== null, true)
 
+
+  // ---------- Buffet: roteiro próprio (áudio do Noel, 07/11/2026) ----------
+  const tl = await import('../lib/tools')
+  const { CRM_MAP: MAPA } = await import('../lib/crm-map')
+  const portaL = MAPA.portas[0]
+  const snapB = tl.snapshot(portaL, { servico: 'buffet', respostas: { convidados: '100' } })
+  eq('buffet: roteiro são data, local, pessoas e horário', [...snapB.preenchidos, ...snapB.abertos.map(c => ({ campo: c }))].map(x => x.campo.key).sort(), ['convidados', 'dataEvento', 'enderecoEvento', 'horarioEvento'])
+  eq('buffet: local e horário valem sem "entrega"', snapB.abertos.map(c => c.key), ['dataEvento', 'enderecoEvento', 'horarioEvento'])
+  eq('buffet: local tem nome e pergunta próprios', [snapB.abertos[1].name, snapB.abertos[1].pergunta], ['Local do evento', 'Onde vai ser o evento?'])
+  eq('buffet: contexto proíbe espeto e quilo', /NÃO pergunte itens, cardápio, quantidades, espetos nem quilos/.test(tl.describeOpen(portaL, snapB)), true)
+  const snapOk = tl.snapshot(portaL, { servico: 'buffet', respostas: { convidados: '100', dataEvento: '12/12/2026', enderecoEvento: 'Atibaia', horarioEvento: '13h' } })
+  eq('buffet completo manda finalizar como outro_servico', /finalizar_atendimento\(outro_servico\) AGORA/.test(tl.describeOpen(portaL, snapOk)), true)
+  eq('locação continua com o roteiro de itens', tl.snapshot(portaL, {}).abertos[0].key, 'itens')
+
   return 0
 }
