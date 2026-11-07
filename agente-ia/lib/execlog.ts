@@ -33,7 +33,7 @@ export function costUsd(model: string, u: Usage): number | null {
 
 export interface ExecEntry {
   at: string
-  tipo: 'resposta' | 'menu' | 'finalizou' | 'pulou' | 'erro' | 'reset' | 'webhook' | 'erp'
+  tipo: 'resposta' | 'menu' | 'finalizou' | 'pulou' | 'erro' | 'reset' | 'webhook' | 'erp' | 'followup'
   leadId: string
   nome?: string
   porta?: string

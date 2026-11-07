@@ -33,6 +33,8 @@ export const CONFIG = {
   redisPrefix: process.env.REDIS_PREFIX || 'agente-cliente:',
 
   webhookSecret: required('WEBHOOK_SECRET'),
+  /** a Vercel manda "Authorization: Bearer <CRON_SECRET>" nas chamadas do cron (follow-up) */
+  cronSecret: process.env.CRON_SECRET || '',
   debounceSeconds: Number(process.env.DEBOUNCE_SECONDS || 10),
 
   // Gate: só atende quem tem a tag. Vazio = atende todos (só no fim da rampagem).

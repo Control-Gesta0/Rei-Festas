@@ -26,6 +26,7 @@ function redisCmd(c: any[]): any {
     case 'del': { let n = 0; for (const k of [key, ...a]) n += db.delete(k) ? 1 : 0; return n }
     case 'lpush': { const l = db.get(key) || []; l.unshift(...a); db.set(key, l); return l.length }
     case 'ltrim': return 'OK'
+    case 'zadd': { const z = db.get(key) || {}; z[a[a.length - 1]] = Number(a[a.length - 2]); db.set(key, z); return 1 }
     case 'lrange': return (db.get(key) || []).slice(Number(a[0]), Number(a[1]) === -1 ? undefined : Number(a[1]) + 1)
     case 'eval': { const lk = c[3]; const own = c[4]; if (db.get(lk) === own) { if (/del/.test(c[1])) db.delete(lk); return 1 } return 0 }
     default: throw new Error('redis mock: ' + cmd)
@@ -76,6 +77,7 @@ async function main() {
     ['nota interna NÃO chegou ao modelo', !ctxTxt.includes('SEGREDO')],
     ['mensagem do lead chegou ao modelo', ctxTxt.includes('queria saber dos planos')],
     ['diário registrou resposta com a tool', execs[0]?.tipo === 'resposta' && (execs[0].tools || []).includes('salvar_respostas')],
+    ['agendou o follow-up do lead', !!db.get('agente-cliente:followup')?.C1],
     ['estado gravou a resposta do roteiro', JSON.stringify(db.get('agente-cliente:state:C1') || '').includes('planos')],
     ['id enviado lembrado (IA ≠ humano)', db.has('agente-cliente:enviada:out1')],
   ]

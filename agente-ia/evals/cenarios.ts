@@ -17,6 +17,8 @@ const semTravessao = { nome: 'sem travessão', fn: (_w: World, t: Turno[]) => t.
 const curta = { nome: 'mensagens de WhatsApp (até 600 caracteres)', fn: (_w: World, t: Turno[]) => t.every(x => x.resposta.length <= 600) }
 const base = [umaPergunta, semFallback, semTravessao, curta]
 const finalizou = (...motivos: string[]) => ({ nome: `finalizou como ${motivos.join(' ou ')}`, fn: (w: World) => motivos.includes(w.state.finalizado?.motivo) })
+const abriuCard = { nome: 'abriu o card (necessidade comercial)', fn: (w: World) => !!w.stageId }
+const semCard = { nome: 'NÃO abriu card (não é comercial)', fn: (w: World) => !w.stageId }
 const naoFinalizou = { nome: 'NÃO finalizou', fn: (w: World) => !w.state.finalizado }
 const usou = (tool: string) => ({ nome: `usou ${tool}`, fn: (_w: World, t: Turno[]) => t.some(x => x.tools.includes(tool)) })
 const naoUsou = (tool: string) => ({ nome: `não usou ${tool}`, fn: (_w: World, t: Turno[]) => t.every(x => !x.tools.includes(tool)) })
@@ -257,7 +259,7 @@ export const CENARIOS: Cenario[] = [
     porta: 'locacao',
     msgs: ['Boa tarde'],
     checks: [
-      ...base, naoFinalizou, naoUsou('calcular_tabela'),
+      ...base, naoFinalizou, naoUsou('calcular_tabela'), semCard,
       disse('disse que é a assistente virtual', /assistente virtual/i),
       disse('perguntou em que pode ajudar', /(em que|como) posso (te )?ajudar/i),
       disse('mandou o link do catálogo', CATALOGO),
@@ -299,7 +301,7 @@ export const CENARIOS: Cenario[] = [
     historico: [['in', 'boa tarde'], ['out', ABERTURA]],
     msgs: ['Queria fazer um orçamento'],
     checks: [
-      ...base, naoFinalizou,
+      ...base, naoFinalizou, abriuCard,
       naoDisse('não perguntou tipo de evento', /tipo de evento|que evento/i),
     ],
     criterios: ['Pede os itens com as quantidades', 'Não repete o link do catálogo (já foi na primeira mensagem); pode lembrar que ele está na conversa'],
@@ -308,7 +310,7 @@ export const CENARIOS: Cenario[] = [
     id: 'devolucao',
     porta: 'locacao',
     msgs: ['Boa tarde, queria combinar a devolução do material que aluguei semana passada'],
-    checks: [...base, finalizou('ja_e_cliente'), naoUsou('calcular_tabela'), naoDisse('não mandou catálogo', CATALOGO)],
+    checks: [...base, finalizou('ja_e_cliente'), naoUsou('calcular_tabela'), semCard, naoDisse('não mandou catálogo', CATALOGO)],
     criterios: ['Diz que vai passar para a equipe', 'Não tenta vender nem pede itens ou cadastro'],
   },
   {

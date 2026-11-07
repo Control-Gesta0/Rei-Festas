@@ -2,7 +2,9 @@ import { adoptToken, currentToken, debounceAndClaim, releaseLock, renewLock } fr
 import { CONFIG } from './config'
 import { CRM_MAP } from './crm-map'
 import { logExec } from './execlog'
-import { contactName, contactTags, getContact } from './ghl'
+import { contactName, contactTags, findOpportunity, getContact } from './ghl'
+import { decidirSilencio, ETAPAS_DA_EQUIPE, inicioDoNovoCiclo } from './ciclo'
+import { agendarFollowup } from './followup'
 import { k, redis } from './redis'
 import { alreadyAnswered, getHydratedHistory, humanSpokeRecently, lastInbound, markAnswered, type ChatMsg } from './history'
 import { createBrain } from './llm'
@@ -42,17 +44,33 @@ export async function processContact(contactId: string, webhookId: string): Prom
     nome = contactName(contato)
     const tags = contactTags(contato).map(t => t.toLowerCase())
     if (tags.includes(CONFIG.humanTag)) return pular(`tag "${CONFIG.humanTag}"`, false)
-    // Gate em código também (o workflow já filtra, mas fail-closed se alguém mexer nele)
-    if (CONFIG.gateTag && !tags.includes(CONFIG.gateTag)) {
-      if (await disponhaPosHandoff(contactId, nome)) return
-      return pular(`sem a tag "${CONFIG.gateTag}"`, false)
-    }
-
-    // Tag de gate de volta num lead já finalizado = novo ciclo
-    const st0 = await getState(contactId)
-    if (st0.finalizado) {
-      await clearState(contactId)
-      console.log(`[agente] ${contactId} voltou com a tag de gate — novo ciclo`)
+    if (CONFIG.gateTag) {
+      // Gate em código também (o workflow já filtra, mas fail-closed se alguém mexer nele)
+      if (!tags.includes(CONFIG.gateTag)) {
+        if (await disponhaPosHandoff(contactId, nome)) return
+        return pular(`sem a tag "${CONFIG.gateTag}"`, false)
+      }
+      // Tag de gate de volta num lead já finalizado = novo ciclo
+      const st0 = await getState(contactId)
+      if (st0.finalizado) {
+        await clearState(contactId)
+        console.log(`[agente] ${contactId} voltou com a tag de gate — novo ciclo`)
+      }
+    } else {
+      // Modo "atende todos": quem decide é o estado da conversa (lib/ciclo.ts)
+      const st0 = await getState(contactId)
+      const pipelineId = CRM_MAP.oportunidade.pipelineId
+      const daEquipe = pipelineId ? await findOpportunity(contactId, pipelineId, ETAPAS_DA_EQUIPE) : null
+      const etapaDaEquipe = daEquipe ? (CRM_MAP.etapas.find(e => e.id === daEquipe.pipelineStageId)?.name || 'pedido com a equipe') : null
+      const silencio = decidirSilencio({ state: st0, agora: Date.now(), etapaDaEquipe })
+      if (silencio.silencio) {
+        if (await disponhaPosHandoff(contactId, nome)) return
+        return pular(silencio.motivo, false)
+      }
+      if (silencio.limparEstado) {
+        await clearState(contactId)
+        console.log(`[agente] ${contactId} voltou depois do silêncio pós-atendimento — novo ciclo`)
+      }
     }
 
     const claim = await debounceAndClaim(contactId, webhookId)
@@ -63,12 +81,12 @@ export async function processContact(contactId: string, webhookId: string): Prom
     for (let round = 0; round < MAX_ROUNDS; round++) {
       await renewLock(contactId, lockOwner!)
       const conv = await getHydratedHistory(contactId)
-      const history = conv.msgs
+      let history = conv.msgs
       const target = lastInbound(history)
       if (!target) return pular('nenhuma mensagem do lead no histórico do GHL')
       if (await alreadyAnswered(contactId, target.id)) return
-      const bloco = blocoAtual(history)
-      const textoTurno = bloco.map(m => m.text).join('\n')
+      let bloco = blocoAtual(history)
+      let textoTurno = bloco.map(m => m.text).join('\n')
 
       // Reset de teste (só contatos em TEST_CONTACT_IDS). Vale a ÚLTIMA mensagem: com a IA
       // travada (humano recente), o bloco junta tudo o que ficou sem resposta
@@ -81,6 +99,21 @@ export async function processContact(contactId: string, webhookId: string): Prom
       }
 
       if (await humanSpokeRecently(conv.raw, Date.now(), conv.corteMs)) return pular('um humano respondeu pelo GHL nas últimas 6h — a IA não atropela')
+
+      // Modo "atende todos": contato que a IA nunca atendeu (ou conversa parada há dias) começa um
+      // atendimento NOVO na mensagem atual. O histórico antigo com a equipe fica fora do contexto.
+      if (!CONFIG.gateTag) {
+        const stCiclo = await getState(contactId)
+        const corte = inicioDoNovoCiclo({ state: stCiclo, msgs: history, agora: Date.now() })
+        if (corte !== null) {
+          if (stCiclo.porta) await clearState(contactId)
+          await redis.set(k('corte', contactId), String(corte), { ex: 90 * 86400 })
+          history = history.filter(m => m.ts >= corte)
+          bloco = blocoAtual(history)
+          textoTurno = bloco.map(m => m.text).join('\n')
+          console.log(`[agente] ${contactId}: atendimento novo a partir de ${new Date(corte).toISOString()}`)
+        }
+      }
 
       const state = await getState(contactId)
 
@@ -140,11 +173,17 @@ export async function processContact(contactId: string, webhookId: string): Prom
 
       const detail = await sendReply(contactId, reply.text, conv.instancia)
       await markAnswered(contactId, target.id)
-      // 1ª resposta da IA: a oportunidade nasce/anda para "Em Contato" (código, fail-closed, nunca derruba a resposta)
+      // 1ª resposta da IA: a oportunidade que JÁ existe anda para "Em Contato". Card novo só nasce quando
+      // a IA identifica que a necessidade é comercial (abrir_oportunidade, salvar itens, calcular_tabela)
       if (primeiroContatoDaPorta && CRM_MAP.etapaEmContatoId && !reply.handoff) {
         try {
-          if (!podeMover(await port.getLead(), CRM_MAP.etapaEmContatoId)) await port.moveStage(CRM_MAP.etapaEmContatoId)
+          const lead = await port.getLead()
+          if (lead.opportunityId && !podeMover(lead, CRM_MAP.etapaEmContatoId)) await port.moveStage(CRM_MAP.etapaEmContatoId)
         } catch (e) { console.warn(`[agente] ${contactId}: não moveu para Em Contato:`, e) }
+      }
+      // Lead que sumir depois desta resposta ganha um follow-up (nunca derruba a resposta)
+      if (!reply.handoff) {
+        try { await agendarFollowup(contactId) } catch (e) { console.warn(`[agente] ${contactId}: não agendou o follow-up:`, e) }
       }
       const motivo = reply.handoff ? (await getState(contactId)).finalizado?.motivo : undefined
       await logExec({

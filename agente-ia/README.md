@@ -34,6 +34,25 @@ Jornada no funil "Locação: Vendas" (o GHL vai até o aceite):
 Daí para a frente (reserva no app Locações, sinal, saldo, recebimento) é tudo no VHSYS.
 Os lembretes de saldo, véspera e devolução continuam no GHL, pelos campos de data do card.
 
+## Atende todos os contatos (GATE_TAG vazio)
+
+Com `GATE_TAG` vazio, a IA atende quem escrever, sem depender de tag. Quem decide é o estado da conversa (`lib/ciclo.ts`):
+
+| Situação | O que a IA faz |
+|---|---|
+| Tag `atendimento-humano` (equipe, motorista, parceiros) | nunca responde |
+| Equipe respondeu pelo GHL nas últimas 6h | não atropela |
+| Card aberto em Pronto para orçamento, Orçamento enviado ou Pedido fechado | fica quieta: o pedido é da equipe |
+| Passou para a equipe há menos de `SILENCIO_POS_HANDOFF_H` (24h) | fica quieta (só o "Disponha!") |
+| Nunca atendido pela IA, ou conversa parada há `NOVO_CICLO_APOS_DIAS` (3) | atendimento novo, que começa na mensagem atual (o histórico antigo não entra) |
+| Atendimento em andamento | continua |
+
+**Card só quando é comercial.** A 1ª resposta não abre card. O card nasce quando a IA identifica interesse comercial (`abrir_oportunidade`), grava itens ou calcula a tabela. Demanda administrativa (pedido já feito, pagamento, devolução, reclamação, fornecedor) vai para a equipe sem card.
+
+**Follow-up.** Se o lead para de responder depois de uma resposta da IA, `FOLLOWUP_HORAS` (2) depois, em horário comercial (8h às 20h; fora disso, às 9h), a IA pergunta UMA vez se ainda pode ajudar. Não manda se a equipe respondeu, se o atendimento já passou para a equipe ou se o lead só agradeceu. Cron da Vercel a cada 15 min em `/api/followup` (precisa de `CRON_SECRET`).
+
+No GHL: o workflow "Cliente Respondeu" chama o webhook para TODA resposta pelo canal SMS (sem filtro de tag). O workflow "Contato criado → tag ia-ativa" deixa de ser necessário.
+
 ## Pedido fechado → VHSYS
 
 Card em **Pedido fechado** → workflow do GHL → `POST /api/erp`. O agente:
@@ -90,9 +109,10 @@ python scripts/catalogo_agente.py
 ## Variáveis de ambiente (Vercel → Settings → Environment Variables)
 
 Obrigatórias: `GHL_TOKEN` · `GHL_LOCATION_ID` · `OPENAI_API_KEY` · `UPSTASH_REDIS_REST_URL` · `UPSTASH_REDIS_REST_TOKEN` · `WEBHOOK_SECRET`
-Operação: `CLIENT_NAME` (Rey Festas) · `GATE_TAG` (ia-ativa) · `HUMAN_TAG` (atendimento-humano) · `REDIS_PREFIX` (agente-reyfestas:) · `TEST_CONTACT_IDS`
+Operação: `CLIENT_NAME` (Rey Festas) · `GATE_TAG` (vazio = atende todos; `ia-ativa` = só quem tem a tag) · `HUMAN_TAG` (atendimento-humano) · `REDIS_PREFIX` (agente-reyfestas:) · `TEST_CONTACT_IDS`
 Opcionais: `LLM_MODEL` · `VISION_MODEL` · `STT_MODEL` · `TIMEZONE` · `DEBOUNCE_SECONDS` · `GHL_CHANNEL` (`SMS` na Rey Festas: a ponte ZaptosWPP entra como provedor de SMS)
 ERP: `VHSYS_ACCESS_TOKEN` · `VHSYS_SECRET_ACCESS_TOKEN` · `ERP_MODO` (`gravar` para valer)
+Atende todos e follow-up: `CRON_SECRET` (obrigatório para o cron do follow-up) · `FOLLOWUP_HORAS` (2; 0 desliga) · `SILENCIO_POS_HANDOFF_H` (24) · `NOVO_CICLO_APOS_DIAS` (3)
 Painel: `PAINEL_SENHA` (senha própria do painel, diferente do `WEBHOOK_SECRET`)
 
 Local: os scripts leem `agente-ia/.env.local` e o `.env` da raiz do repositório. Env da Vercel só vale em deploy novo.
@@ -114,6 +134,7 @@ Local: os scripts leem `agente-ia/.env.local` e o `.env` da raiz do repositório
 | Endpoint | Para quê |
 |---|---|
 | `GET /api/inbound` | saúde: `{ok, redis}` |
+| `GET /api/followup` | cron (Bearer `CRON_SECRET`) ou `?secret=…`: manda os follow-ups vencidos |
 | `POST /api/inbound?secret=…` | webhook do workflow do GHL |
 | `GET /api/discover?secret=…` | lê funis, campos, calendários e tags do GHL |
 | `GET /api/validate?secret=…` | compara o mapa com o GHL vivo |
@@ -128,4 +149,4 @@ Local: os scripts leem `agente-ia/.env.local` e o `.env` da raiz do repositório
 
 - Buffet e evento com agenda do consultor (hoje a IA só passa o caso com a tag `ia-buffet`).
 - Lembretes de saldo, véspera e devolução (D13): workflow do GHL, fase seguinte.
-- Resposta por voz e follow-up automático.
+- Resposta por voz.
