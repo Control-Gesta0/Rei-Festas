@@ -190,6 +190,20 @@ export const CRM_MAP = {
     { id: VENDAS.coletando, name: 'Coletando pedido', quando: 'a pessoa passou o primeiro item ou a data do evento' },
     { id: VENDAS.pedidoCompleto, name: 'Pronto para orçamento', quando: 'o pedido e o cadastro estão completos (o código move ao finalizar)', soCodigo: true },
   ] as Etapa[],
+  /**
+   * BUFFET: orçamento fechado, a equipe calcula (áudio do Noel, 07/11/2026). A IA confirma que tem o
+   * serviço, coleta só estes 4 dados e passa. Nunca pergunta itens, cardápio, espetos ou quilos.
+   */
+  buffet: {
+    roteiro: ['dataEvento', 'enderecoEvento', 'convidados', 'horarioEvento'],
+    nomes: { enderecoEvento: 'Local do evento' } as Record<string, string>,
+    perguntas: {
+      dataEvento: 'Pra qual data é o evento?',
+      enderecoEvento: 'Onde vai ser o evento?',
+      convidados: 'Pra quantas pessoas?',
+      horarioEvento: 'Que horas começa o evento?',
+    } as Record<string, string>,
+  },
   /** movidas pelo CÓDIGO, não pelo modelo */
   etapaEmContatoId: VENDAS.novoContato,
   etapaQualificadoId: VENDAS.pedidoCompleto,

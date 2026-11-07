@@ -124,8 +124,11 @@ export function buildTools(porta: Porta): OpenAI.Chat.ChatCompletionTool[] {
         description: 'Abre o card do pedido no funil. Chame UMA vez, assim que ficar claro que a necessidade é COMERCIAL: a pessoa quer alugar, pediu orçamento, preço, perguntou por itens para um evento ou quer buffet. NÃO chame para cumprimento sem assunto, pedido já feito, pagamento, comprovante, devolução, reclamação, fornecedor ou recado.',
         parameters: {
           type: 'object',
-          properties: { evidencia: { type: 'string', description: 'Trecho LITERAL do que a pessoa escreveu que mostra o interesse comercial' } },
-          required: ['evidencia'],
+          properties: {
+            assunto: { type: 'string', enum: ['locacao', 'buffet'], description: 'buffet = quer o SERVIÇO de buffet ou churrasco (a loja faz a comida); locacao = quer alugar material' },
+            evidencia: { type: 'string', description: 'Trecho LITERAL do que a pessoa escreveu que mostra o interesse comercial' },
+          },
+          required: ['assunto', 'evidencia'],
           additionalProperties: false,
         },
       },
@@ -281,11 +284,24 @@ export function buildTools(porta: Porta): OpenAI.Chat.ChatCompletionTool[] {
 
 // ---------- Snapshot do roteiro ----------
 
-export interface Snapshot { preenchidos: Array<{ campo: Campo; valor: string }>; abertos: Campo[] }
+export interface Snapshot { preenchidos: Array<{ campo: Campo; valor: string }>; abertos: Campo[]; buffet?: boolean }
 
 export function snapshot(porta: Porta, state: LeadState): Snapshot {
   const preenchidos: Snapshot['preenchidos'] = []
   const abertos: Campo[] = []
+  if (state.servico === 'buffet') {
+    // Buffet: roteiro próprio, sem condição de entrega (local e horário valem sempre)
+    const b = CRM_MAP.buffet
+    for (const key of b.roteiro) {
+      const base = campoByKey(key)
+      if (!base) continue
+      const campo: Campo = { ...base, aplicavel: undefined, name: b.nomes[key] || base.name, pergunta: b.perguntas[key] || base.pergunta }
+      const v = state.respostas?.[key]
+      if (v) preenchidos.push({ campo, valor: v })
+      else if (!(state.semResposta || []).includes(key)) abertos.push(campo)
+    }
+    return { preenchidos, abertos, buffet: true }
+  }
   for (const key of porta.roteiro) {
     const campo = campoByKey(key)
     if (!campo || !aplicavel(campo, state)) continue
@@ -297,6 +313,12 @@ export function snapshot(porta: Porta, state: LeadState): Snapshot {
 }
 
 export function describeOpen(porta: Porta, s: Snapshot): string {
+  if (s.buffet) {
+    const regra = 'BUFFET: orçamento fechado, quem calcula é a nossa equipe. NÃO pergunte itens, cardápio, quantidades, espetos nem quilos.'
+    if (!s.abertos.length) return `${regra} Dados completos (data, local, pessoas e horário). Chame finalizar_atendimento(outro_servico) AGORA e diga, sem pergunta, que a nossa equipe monta o orçamento do buffet e manda por aqui.`
+    const prox = s.abertos[0]
+    return `${regra} Faltam ${s.abertos.length} (${s.abertos.map(c => c.name).join('; ')}). Próximo → ${prox.name} ("${prox.pergunta}"). Uma pergunta por vez; se a pessoa já disse algo em aberto, grave ANTES de perguntar.`
+  }
   if (!porta.roteiro.length) return ''
   if (!s.abertos.length) {
     return agendaAtiva()
@@ -369,8 +391,8 @@ export async function aplicarFinalizacao(ctx: ToolCtx, motivo: string, resumoRaw
     ...(urgente && CRM_MAP.finalizar.tagUrgente ? [CRM_MAP.finalizar.tagUrgente] : []),
   ]
   if (extras.length) await port.addTags([...new Set(extras)])
-  // Qualificado sem reunião marcada: a oportunidade vai para "Qualificado" (código, não o modelo)
-  if (motivo === 'qualificado' && CRM_MAP.etapaQualificadoId) {
+  // Qualificado sem reunião marcada (ou buffet com os 4 dados): a oportunidade vai para "Pronto para orçamento"
+  if ((motivo === 'qualificado' || (motivo === 'outro_servico' && state.servico === 'buffet')) && CRM_MAP.etapaQualificadoId) {
     try {
       if (!podeMover(await port.getLead(), CRM_MAP.etapaQualificadoId)) await port.moveStage(CRM_MAP.etapaQualificadoId)
     } catch (e) { console.warn('[finalizar] não moveu para Qualificado:', e) }
@@ -514,6 +536,10 @@ export async function runTool(ctx: ToolCtx, name: string, input: Record<string, 
         const motivo = String(input.motivo || '') as Motivo
         if (!MOTIVOS.includes(motivo)) return err(`Motivo inválido: ${motivo}`)
         const state = await port.getState()
+        if (motivo === 'outro_servico' && state.servico === 'buffet') {
+          const snapB = snapshot(porta, state)
+          if (snapB.abertos.length) return err(`Ainda falta: ${snapB.abertos.map(c => c.name).join('; ')}. ${describeOpen(porta, snapB)}`)
+        }
         if (motivo === 'qualificado') {
           const sem = new Set(state.semResposta || [])
           const faltando = porta.obrigatorios.filter(key => {
@@ -548,6 +574,7 @@ export async function runTool(ctx: ToolCtx, name: string, input: Record<string, 
       }
 
       case 'consultar_disponibilidade': {
+        if ((await port.getState()).servico === 'buffet') return err('Buffet é orçamento fechado: não consulte itens. Colete só data, local, pessoas e horário.')
         const cat = CRM_MAP.catalogo
         if (!cat) return err('Catálogo não configurado.')
         if (!port.disponibilidade) return ok('A agenda de reservas não está ligada. Não fale de disponibilidade: diga que a nossa equipe confere para a data.')
@@ -579,6 +606,7 @@ export async function runTool(ctx: ToolCtx, name: string, input: Record<string, 
       }
 
       case 'calcular_tabela': {
+        if ((await port.getState()).servico === 'buffet') return err('Buffet é orçamento fechado, quem calcula é a nossa equipe: NÃO monte itens nem quantidades. Colete só data, local, pessoas e horário.')
         const cat = CRM_MAP.catalogo
         if (!cat) return err('Catálogo não configurado.')
         // Linha repetida com a mesma evidência é eco do modelo, não pedido em dobro ("50 pratos... e mais 30 pratos" tem evidências diferentes)
@@ -628,12 +656,14 @@ export async function runTool(ctx: ToolCtx, name: string, input: Record<string, 
       }
 
       case 'abrir_oportunidade': {
-        const lead = await port.getLead()
-        if (lead.opportunityId) return ok('O card do pedido já está aberto. Siga o atendimento.')
         const ev = String(input.evidencia || '')
         if (!evidenceFound(ev, ctx.leadText)) return err(`A evidência "${ev}" não aparece no que a pessoa escreveu. Só abra o card quando ela mostrar interesse comercial.`)
-        await port.moveStage(CRM_MAP.oportunidade.etapaInicialId)
-        return ok('Card do pedido aberto em "Novo contato". Siga o atendimento normalmente (não comente isso com a pessoa).')
+        const buffet = input.assunto === 'buffet'
+        const next = buffet ? await port.patchState({ servico: 'buffet' }) : await port.getState()
+        const lead = await port.getLead()
+        if (!lead.opportunityId) await port.moveStage(CRM_MAP.oportunidade.etapaInicialId)
+        const aviso = lead.opportunityId ? 'O card do pedido já estava aberto.' : 'Card do pedido aberto em "Novo contato" (não comente isso com a pessoa).'
+        return ok(buffet ? `${aviso} ${describeOpen(porta, snapshot(porta, next))}` : `${aviso} Siga o atendimento normalmente.`)
       }
 
       case 'mover_etapa': {

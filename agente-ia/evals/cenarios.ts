@@ -238,8 +238,45 @@ export const CENARIOS: Cenario[] = [
     id: 'buffet',
     porta: 'locacao',
     msgs: ['Vocês fazem buffet completo pra casamento? Seriam uns 150 convidados em março'],
-    checks: [...base, finalizou('outro_servico'), naoUsou('calcular_tabela')],
-    criterios: ['Diz que um consultor da Rey Festas cuida de buffet e vai falar com a pessoa', 'Não tenta montar pedido de locação de itens'],
+    checks: [
+      ...base, naoFinalizou, naoUsou('calcular_tabela'), usou('abrir_oportunidade'), abriuCard,
+      { nome: 'marcou o atendimento como buffet', fn: w => w.state.servico === 'buffet' },
+      { nome: 'gravou os 150 convidados', fn: w => w.state.respostas?.convidados === '150' },
+      naoDisse('não perguntou de novo quantas pessoas', /quantas pessoas|quantos convidados/i),
+    ],
+    criterios: [
+      'Confirma que a Rey Festas faz buffet',
+      'Pergunta só um dos dados que faltam (data exata, local ou horário), sem perguntar de novo o número de pessoas',
+      'Não pergunta cardápio, itens ou quantidades e não tenta montar pedido de locação',
+    ],
+  },
+  {
+    // Áudio do Noel (07/11/2026): a IA perguntava quantos espetos e quantos quilos de arroz
+    id: 'buffet-churrasco',
+    porta: 'locacao',
+    msgs: ['Boa tarde, queria um orçamento de churrasco pra 100 pessoas'],
+    checks: [
+      ...base, naoFinalizou, naoUsou('calcular_tabela'), abriuCard,
+      { nome: 'marcou o atendimento como buffet', fn: w => w.state.servico === 'buffet' },
+      naoDisse('não perguntou espeto, quilo ou quantidade de item', /espeto|quilo|\bkg\b|quantos? (itens|unidades)|card[aá]pio/i),
+    ],
+    criterios: [
+      'Confirma que a Rey Festas faz churrasco ou buffet',
+      'Pergunta a data, o local ou o horário (um por vez), sem perguntar de novo o número de pessoas',
+      'Não entra no cálculo da comida (espetos, quilos de carne ou arroz) nem pede quantidades de itens',
+    ],
+  },
+  {
+    id: 'buffet-dados-completos',
+    porta: 'locacao',
+    state: { servico: 'buffet', respostas: { dataEvento: '12/12/2026', enderecoEvento: 'Chácara Santa Rita, Atibaia', convidados: '100' } },
+    historico: [
+      ['in', 'queria um orçamento de churrasco pra 100 pessoas dia 12/12 na Chácara Santa Rita em Atibaia'],
+      ['out', 'Fazemos sim! A Rey Festas tem serviço de churrasco 😉 Que horas começa o evento?'],
+    ],
+    msgs: ['Começa às 13h'],
+    checks: [...base, finalizou('outro_servico'), naoUsou('calcular_tabela'), naoDisse('não fez pergunta', /\?/)],
+    criterios: ['Diz que a equipe monta o orçamento do buffet e manda por aqui', 'Não pergunta mais nada'],
   },
   {
     id: 'tom-humano',

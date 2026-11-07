@@ -196,7 +196,10 @@ export function createBrain(opts: LlmOptions) {
       // Roteiro completo e ninguém finalizou: uma cobrança (o card precisa ir para a Karol)
       if (!handoff && !cobrouFechamento && step < MAX_STEPS - 1 && ctx.porta.roteiro.length && !agendaAtiva() && !snapshot(ctx.porta, await ctx.port.getState()).abertos.length) {
         cobrouFechamento = true
-        messages.push({ role: 'system', content: '[SISTEMA] O roteiro está COMPLETO e o atendimento não foi finalizado. Chame finalizar_atendimento(qualificado) agora e depois mande o resumo do pedido para a pessoa conferir (itens, data, entrega ou retirada), sem pergunta.' })
+        const ehBuffet = (await ctx.port.getState()).servico === 'buffet'
+        messages.push({ role: 'system', content: ehBuffet
+          ? '[SISTEMA] Os dados do BUFFET estão completos e o atendimento não foi finalizado. Chame finalizar_atendimento(outro_servico) agora e diga, sem pergunta, que a nossa equipe monta o orçamento do buffet e manda por aqui.'
+          : '[SISTEMA] O roteiro está COMPLETO e o atendimento não foi finalizado. Chame finalizar_atendimento(qualificado) agora e depois mande o resumo do pedido para a pessoa conferir (itens, data, entrega ou retirada), sem pergunta.' })
         continue
       }
       // A pessoa escreveu a data (dd/mm) e o modelo não gravou: uma cobrança antes de responder

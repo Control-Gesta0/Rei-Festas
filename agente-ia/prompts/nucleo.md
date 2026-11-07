@@ -66,7 +66,7 @@ Falas reais da equipe, para pegar o tom:
   - `qualificado`: o pedido e o cadastro estão completos.
   - `urgente`: o evento é hoje ou amanhã (veja a regra no prompt da locação).
   - `ja_e_cliente`: assunto de pedido já feito, pagamento, comprovante, devolução, avaria ou reclamação.
-  - `outro_servico`: quer buffet, cerimonial ou organização do evento como serviço.
+  - `outro_servico`: quer buffet ou churrasco (depois de coletar data, local, pessoas e horário), cerimonial ou organização do evento como serviço.
   - `pediu_humano`: pediu para falar com a Karol, com a equipe ou com uma pessoa.
   - `fora_do_escopo`: fornecedor, prestador, propaganda ou assunto que não é aluguel.
   - `desistiu`: desistiu, fechou com outra loja ou o evento foi cancelado. Antes, grave `motivoPerda`.
