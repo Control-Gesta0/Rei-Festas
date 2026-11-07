@@ -255,5 +255,39 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   eq('painel HTML: devolução pendente aparece com atraso', /Caio[\s\S]*5 dia\(s\)/.test(html), true)
   eq('painel HTML: fonte fora do ar não derruba a página', painel.renderPainel({ geradoEm: new Date(agoraP).toISOString(), dias: 7, ia, funil: { erro: 'GHL 401' }, locacao: { erro: 'tokens' } }).includes('Não consegui ler o funil do GHL: GHL 401'), true)
 
+
+  // ---------- Atende todos: ciclo de atendimento (lib/ciclo.ts) ----------
+  const ciclo = await import('../lib/ciclo')
+  const H = 3600e3, D = 86400e3, T0 = Date.parse('2026-11-07T15:00:00Z')
+  const m = (id: string, dir: 'in' | 'out', ts: number, text = 'x') => ({ id, dir, ts, text })
+  eq('ciclo: card com a equipe = silêncio', ciclo.decidirSilencio({ state: {}, agora: T0, etapaDaEquipe: 'Orçamento enviado' }).silencio, true)
+  eq('ciclo: passou para a equipe há 2h = silêncio', ciclo.decidirSilencio({ state: { finalizado: { motivo: 'ja_e_cliente', em: new Date(T0 - 2 * H).toISOString(), resumo: '' } }, agora: T0, etapaDaEquipe: null }).silencio, true)
+  eq('ciclo: passou para a equipe há 2 dias = limpa e atende', ciclo.decidirSilencio({ state: { finalizado: { motivo: 'ja_e_cliente', em: new Date(T0 - 2 * D).toISOString(), resumo: '' } }, agora: T0, etapaDaEquipe: null }), { silencio: false, limparEstado: true })
+  eq('ciclo: contato sem nada = atende', ciclo.decidirSilencio({ state: {}, agora: T0, etapaDaEquipe: null }), { silencio: false, limparEstado: false })
+  eq('ciclo: as etapas da equipe são as depois da IA', ciclo.ETAPAS_DA_EQUIPE.length, 3)
+  const antigo = [m('a', 'in', T0 - 90 * D), m('b', 'out', T0 - 89 * D), m('c', 'in', T0 - 5000), m('d', 'in', T0)]
+  eq('ciclo: contato antigo nunca atendido pela IA começa na mensagem atual', ciclo.inicioDoNovoCiclo({ state: {}, msgs: antigo, agora: T0 }), T0 - 5000)
+  eq('ciclo: atendimento da IA em andamento continua', ciclo.inicioDoNovoCiclo({ state: { porta: 'locacao' }, msgs: [m('a', 'in', T0 - H), m('b', 'out', T0 - H + 60e3), m('c', 'in', T0)], agora: T0 }), null)
+  eq('ciclo: conversa parada há 5 dias vira atendimento novo', ciclo.inicioDoNovoCiclo({ state: { porta: 'locacao' }, msgs: [m('a', 'in', T0 - 6 * D), m('b', 'out', T0 - 5 * D), m('c', 'in', T0)], agora: T0 }), T0)
+  eq('ciclo: mensagem antiga sem resposta não entra no atendimento novo', ciclo.inicioDoNovoCiclo({ state: {}, msgs: [m('a', 'in', T0 - 40 * D), m('b', 'in', T0)], agora: T0 }), T0)
+
+  // ---------- Follow-up (lib/followup.ts) ----------
+  const fu2 = await import('../lib/followup')
+  const SP = 'America/Sao_Paulo'
+  eq('follow-up: 15h em SP fica 15h', fu2.emHorarioComercial(Date.parse('2026-11-07T18:00:00Z'), SP), Date.parse('2026-11-07T18:00:00Z'))
+  eq('follow-up: 21h30 em SP vai para as 9h do dia seguinte', fu2.emHorarioComercial(Date.parse('2026-11-08T00:30:00Z'), SP), Date.parse('2026-11-08T12:00:00Z'))
+  eq('follow-up: 6h em SP vai para as 9h', fu2.emHorarioComercial(Date.parse('2026-11-07T09:00:00Z'), SP), Date.parse('2026-11-07T12:00:00Z'))
+  eq('follow-up: texto com o primeiro nome', fu2.textoFollowup('ANA KAROLINE SANTOS'), 'Oi, Ana! Ainda posso te ajudar com alguma coisa? 😊')
+  eq('follow-up: nome estranho fica de fora', fu2.textoFollowup('📞 5511'), 'Oi! Ainda posso te ajudar com alguma coisa? 😊')
+  const daIa = (id: string) => id.startsWith('ia')
+  const conv = [m('l1', 'in', T0 - 3 * H, 'tem rechaud?'), m('ia1', 'out', T0 - 3 * H + 30e3)]
+  eq('follow-up: lead sumiu depois da IA = manda', fu2.motivoSemFollowup({ state: {}, tags: [], msgs: conv, iaEnviou: daIa }), null)
+  eq('follow-up: lead respondeu = não manda', fu2.motivoSemFollowup({ state: {}, tags: [], msgs: [...conv, m('l2', 'in', T0)], iaEnviou: daIa }), 'o lead respondeu')
+  eq('follow-up: equipe respondeu por último = não manda', fu2.motivoSemFollowup({ state: {}, tags: [], msgs: [...conv, m('karol', 'out', T0)], iaEnviou: daIa }), 'a equipe respondeu por último')
+  eq('follow-up: já passou para a equipe = não manda', fu2.motivoSemFollowup({ state: { finalizado: { motivo: 'qualificado', em: '', resumo: '' } }, tags: [], msgs: conv, iaEnviou: daIa }), 'atendimento já passou para a equipe')
+  eq('follow-up: um por silêncio', fu2.motivoSemFollowup({ state: { followupEm: T0 - H }, tags: [], msgs: [...conv, m('ia2', 'out', T0 - H)], iaEnviou: daIa }), 'follow-up já enviado depois da última mensagem do lead')
+  eq('follow-up: lead só agradeceu = não manda', fu2.motivoSemFollowup({ state: {}, tags: [], msgs: [m('l1', 'in', T0 - H, 'Ok obrigado'), m('ia1', 'out', T0 - H)], iaEnviou: daIa }), 'o lead só agradeceu')
+  eq('follow-up: contato da equipe = não manda', fu2.motivoSemFollowup({ state: {}, tags: ['atendimento-humano'], msgs: conv, iaEnviou: daIa }) !== null, true)
+
   return 0
 }

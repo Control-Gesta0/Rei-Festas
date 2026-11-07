@@ -30,6 +30,8 @@ export interface LeadState {
   agendado?: { inicio: string; eventoId?: string }
   /** a IA já consultou a agenda nesta conversa (convite feito) */
   consultouAgenda?: boolean
+  /** ms do último follow-up enviado (um por silêncio do lead) */
+  followupEm?: number
 }
 
 const TTL = 90 * 86400

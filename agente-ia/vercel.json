@@ -30,6 +30,15 @@
     },
     "api/painel.ts": {
       "maxDuration": 60
+    },
+    "api/followup.ts": {
+      "maxDuration": 120
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/followup",
+      "schedule": "*/15 * * * *"
+    }
+  ]
 }

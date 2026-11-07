@@ -116,6 +116,21 @@ export function buildTools(porta: Porta): OpenAI.Chat.ChatCompletionTool[] {
       },
     })
   }
+  if (CRM_MAP.oportunidade.pipelineId && CRM_MAP.oportunidade.etapaInicialId) {
+    tools.push({
+      type: 'function',
+      function: {
+        name: 'abrir_oportunidade',
+        description: 'Abre o card do pedido no funil. Chame UMA vez, assim que ficar claro que a necessidade é COMERCIAL: a pessoa quer alugar, pediu orçamento, preço, perguntou por itens para um evento ou quer buffet. NÃO chame para cumprimento sem assunto, pedido já feito, pagamento, comprovante, devolução, reclamação, fornecedor ou recado.',
+        parameters: {
+          type: 'object',
+          properties: { evidencia: { type: 'string', description: 'Trecho LITERAL do que a pessoa escreveu que mostra o interesse comercial' } },
+          required: ['evidencia'],
+          additionalProperties: false,
+        },
+      },
+    })
+  }
   tools.push({
     type: 'function',
     function: {
@@ -610,6 +625,15 @@ export async function runTool(ctx: ToolCtx, name: string, input: Record<string, 
           p.foraDoCatalogo.length ? `Fora do catálogo (a equipe vê se tem parecido): ${p.foraDoCatalogo.join(', ')}.` : '',
           describeOpen(porta, snapshot(porta, next)),
         ].filter(Boolean).join('\n'))
+      }
+
+      case 'abrir_oportunidade': {
+        const lead = await port.getLead()
+        if (lead.opportunityId) return ok('O card do pedido já está aberto. Siga o atendimento.')
+        const ev = String(input.evidencia || '')
+        if (!evidenceFound(ev, ctx.leadText)) return err(`A evidência "${ev}" não aparece no que a pessoa escreveu. Só abra o card quando ela mostrar interesse comercial.`)
+        await port.moveStage(CRM_MAP.oportunidade.etapaInicialId)
+        return ok('Card do pedido aberto em "Novo contato". Siga o atendimento normalmente (não comente isso com a pessoa).')
       }
 
       case 'mover_etapa': {
