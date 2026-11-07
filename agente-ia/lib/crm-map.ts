@@ -192,12 +192,16 @@ export const CRM_MAP = {
   ] as Etapa[],
   /**
    * BUFFET: orçamento fechado, a equipe calcula (áudio do Noel, 07/11/2026). A IA confirma que tem o
-   * serviço, coleta só estes 4 dados e passa. Nunca pergunta itens, cardápio, espetos ou quilos.
+   * serviço, coleta só estes 5 dados e passa (tipo de evento entrou no 2º áudio). Nunca pergunta itens, cardápio, espetos ou quilos.
    */
   buffet: {
-    roteiro: ['dataEvento', 'enderecoEvento', 'convidados', 'horarioEvento'],
+    /** a conversa é do SERVIÇO de buffet (churrasco é buffet); "utensílios de buffet" é locação */
+    sinal: /\b(buffet|churrasco|churrasqueiro)\b/i,
+    naoE: /utens[ií]lios?\s+(de|pra|para)\s+buffet|itens\s+(de|pra|para)\s+buffet|mesa\s+(de|pra|para)\s+buffet/i,
+    roteiro: ['tipoEvento', 'dataEvento', 'enderecoEvento', 'convidados', 'horarioEvento'],
     nomes: { enderecoEvento: 'Local do evento' } as Record<string, string>,
     perguntas: {
+      tipoEvento: 'Que tipo de evento vai ser? Aniversário, bodas, casamento, festa de empresa…',
       dataEvento: 'Pra qual data é o evento?',
       enderecoEvento: 'Onde vai ser o evento?',
       convidados: 'Pra quantas pessoas?',
@@ -264,6 +268,11 @@ export const CRM_MAP = {
   },
 
   alertas: [
+    {
+      nome: 'pode ser pedido de buffet',
+      re: /\b(buffet|churrasco|churrasqueiro)\b/i,
+      aviso: 'Se a pessoa quer o SERVIÇO de buffet ou churrasco (a loja faz a comida), chame abrir_oportunidade com assunto "buffet" ANTES de responder e siga a seção "Buffet": só tipo de evento, data, local, pessoas e horário. Se ela quer só alugar utensílios de buffet (rechaud, travessa), é locação.',
+    },
     {
       nome: 'pedido para hoje ou amanhã',
       re: /\b(hoje|amanh[aã]|urgente|pra j[aá]|daqui a pouco|ainda hoje)\b/i,

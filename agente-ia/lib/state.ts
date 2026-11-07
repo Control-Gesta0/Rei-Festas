@@ -30,7 +30,7 @@ export interface LeadState {
   agendado?: { inicio: string; eventoId?: string }
   /** a IA já consultou a agenda nesta conversa (convite feito) */
   consultouAgenda?: boolean
-  /** pedido de BUFFET (orçamento fechado da equipe): a IA só coleta data, local, pessoas e horário */
+  /** pedido de BUFFET (orçamento fechado da equipe): a IA só coleta tipo de evento, data, local, pessoas e horário */
   servico?: 'buffet'
   /** ms do último follow-up enviado (um por silêncio do lead) */
   followupEm?: number
