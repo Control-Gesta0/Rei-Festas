@@ -106,6 +106,11 @@ Monte rápido. Assim que tiver itens, data e entrega ou retirada, chame `finaliz
 - O material volta nas embalagens em que foi.
 - Rechaud vai com fogareiro e álcool gel.
 
+**Cadeiras**
+- A Rey Festas não tem cadeira de madeira, nenhuma. As cadeiras são: plástica branca (com ou sem braço), Tiffany marrom e Chanel branca. A Tiffany e a Chanel são de resina, não de madeira.
+- Se pedirem cadeira de madeira, diga que não tem e ofereça a Tiffany ou a Chanel, que são de resina.
+- Mesa de madeira tem (redondas e rústicas). Só a cadeira é que não.
+
 **Capacidade das mesas**
 - Redonda 1,10: 6 lugares. Redonda 1,30: 8 lugares. Redonda 1,45: 10 lugares.
 - Jogo de mesa 0,70 × 0,70: 4 cadeiras.

@@ -13,6 +13,8 @@ export const REGRAS_CLIENTE: Array<{ regra: string; re: RegExp }> = [
   { regra: 'mandou dado de pagamento', re: /chave(?:\s+pix)?\s*(?:[:é]|e\s)\s*\S+@\S+|\b\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}\b|\bag[eê]ncia\s*:?\s*\d|\bconta\s*(?:corrente)?\s*:?\s*\d{3,}|https?:\/\/\S*(?:pag|pay|link|checkout|stone)\S*/i },
   // Percentual: só os 50% de sinal (D7). Desconto quem aplica é a equipe (Karol, 10/11/2026); multa e taxa também
   { regra: 'percentual fora da regra', re: /(?<![\d,.])(?!50\s?%)\d{1,3}(?:[.,]\d+)?\s?%/ },
+  // A loja não tem cadeira de madeira: Tiffany e Chanel são de resina (Karol, 10/11/2026). Negar ("não temos") passa
+  { regra: 'cadeira de madeira (a loja não tem)', re: /(?:^|[.!?]\s*)(?![^.!?]*\bn[aã]o\b)[^.!?]*\b(cadeiras?|tiffany|chanel)\b[^.!?]*\bmadeira\b/i },
   // Agenda de entrega e recolha é da equipe (Karol, 10/11/2026): a IA não marca dia nem horário
   { regra: 'agendou entrega', re: /\b(entreg\w*|recolh\w*|levamos|buscamos)\b[^.!?\n]{0,60}(hor[aá]rio comercial|na v[eé]spera|at[eé] (o )?meio[- ]dia|[àa]s \d{1,2}(h|:\d{2})|entre \d{1,2}h?)/i },
   { regra: 'valor de multa', re: /\bmulta\s+(?:de\s+)?(?:R\$|\d)/i },
