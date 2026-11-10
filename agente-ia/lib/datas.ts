@@ -23,6 +23,12 @@ function valida(a: number, m: number, d: number): boolean {
 }
 
 /** Dias entre duas datas AAAA-MM-DD (b - a). */
+/** Evento em dezembro? (dataEvento gravada como "dd/mm/aaaa" ou "sáb 21/12/2026") — dezembro tem tabela própria */
+export function ehDezembro(dataEvento?: string | null): boolean {
+  const m = /\b\d{1,2}\/(\d{1,2})\b/.exec(dataEvento || '')
+  return !!m && Number(m[1]) === 12
+}
+
 export function diasEntre(a: string, b: string): number {
   return Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86400000)
 }
