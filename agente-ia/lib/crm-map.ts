@@ -48,7 +48,7 @@ const CAMPOS = {
   },
   enderecoEvento: {
     key: 'enderecoEvento', id: 'tqfeZ0sJCswFHCCISLZ5', model: 'opportunity', ghlName: 'Endereço do evento', type: 'textarea',
-    name: 'Endereço do evento (rua, número, bairro, cidade)', aplicavel: entrega,
+    name: 'Endereço do evento (rua, número, bairro, cidade)',
     pergunta: 'Qual o endereço completo do evento, com rua, número, bairro e cidade?',
   },
   horarioEvento: {
@@ -229,8 +229,8 @@ export const CRM_MAP = {
     campoValor: 'valorTabela',
     /** a primeira soma já põe o card em "Coletando pedido" */
     etapaAoCalcular: VENDAS.coletando,
-    /** pagamento integral à vista: 7% no material (D8) */
-    descontoAVista: 0.07,
+    /** desconto à vista: quem aplica é a equipe (Karol, 10/11/2026); a IA não oferece */
+    descontoAVista: 0,
   },
 
   finalizar: {

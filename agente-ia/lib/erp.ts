@@ -116,7 +116,7 @@ export function obsOrcamento(d: DadosPedido, semCodigo: string[]): string {
     evento ? `${linhaPeriodo(periodoPadrao(evento))} (${d.entregaRetirada === 'Entrega' ? 'entrega e recolha' : 'retirada e devolução'}; ajuste se combinar outra data)` : '',
     d.dataEvento ? `Data do evento: ${dataBR(d.dataEvento)}` : '',
     d.entregaRetirada ? `Entrega ou retirada: ${d.entregaRetirada}` : '',
-    d.entregaRetirada === 'Entrega' && d.enderecoEvento ? `Endereço do evento: ${d.enderecoEvento}` : '',
+    d.enderecoEvento ? `Endereço do evento: ${d.enderecoEvento}` : '',
     d.entregaRetirada === 'Entrega' && d.contatoLocal ? `Quem recebe no local: ${d.contatoLocal}` : '',
     d.tipoEvento ? `Evento: ${d.tipoEvento}${d.convidados ? `, ${d.convidados} convidados` : ''}` : '',
     d.formaPagamento ? `Pagamento preferido: ${d.formaPagamento}` : '',

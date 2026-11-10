@@ -1,7 +1,7 @@
 import type OpenAI from 'openai'
 import { CRM_MAP, campoByKey, type Campo, type Porta } from './crm-map'
 import { montarPedido, reais, textoItens } from './catalogo'
-import { conferirEvidenciaData, dataPelaEvidencia, diasEntre, formatarData, hojeNoFuso, parseDataBR } from './datas'
+import { conferirEvidenciaData, dataPelaEvidencia, diasEntre, formatarData, hojeNoFuso, parseDataBR, ehDezembro } from './datas'
 import { periodoPadrao, textoDisponibilidade } from './locacao'
 import { DISSE_NAO_SEI, evidenceFound, matchOption, norm, overlap, parseNumeroBR } from './guards'
 import { classificar } from './router'
@@ -326,6 +326,13 @@ export function describeOpen(porta: Porta, s: Snapshot): string {
       : 'Roteiro COMPLETO. Chame finalizar_atendimento(qualificado) AGORA e depois mande o resumo do pedido para a pessoa conferir, como manda o fechamento do prompt.'
   }
   const prox = s.abertos[0]
+  // Cadastro: tudo numa mensagem só, em lista (Karol, 10/11/2026), nunca um dado por mensagem
+  const CADASTRO = ['nomeCompleto', 'cpfCnpj', 'rg', 'email', 'enderecoResidencial']
+  if (CADASTRO.includes(prox.key)) {
+    const cad = s.abertos.filter(c => CADASTRO.includes(c.key))
+    const resto = s.abertos.length - cad.length
+    return `Próximo: CADASTRO. Peça TODOS estes dados de uma vez, numa mensagem só, em lista fácil de copiar (um por linha, sem ponto de interrogação em cada item): ${cad.map(c => c.name).join('; ')}. Depois confira o que veio e peça só o que faltou.${resto ? ` (Fora do cadastro ainda falta: ${s.abertos.filter(c => !CADASTRO.includes(c.key)).map(c => c.name).join('; ')}.)` : ''} Se o lead já respondeu algo em aberto, grave ANTES de perguntar.`
+  }
   const opc = prox.options ? ` (grave com uma destas opções EXATAS: ${prox.options.join(' | ')})` : ''
   const lista = s.abertos.length > 1 ? ` (em aberto: ${s.abertos.map(c => c.name).join('; ')})` : ''
   const via = prox.soPorTool ? ` [grava com ${prox.soPorTool}]` : ''
@@ -634,22 +641,30 @@ export async function runTool(ctx: ToolCtx, name: string, input: Record<string, 
         const r = montarPedido(lista.map(i => ({ codigo: String(i.codigo || ''), descricao: String(i.descricao || ''), quantidade: Number(i.quantidade) })), cat.itens)
         if ('erros' in r) return err(`Nada gravado: ${r.erros.join(' · ')}.`)
         const p = r.pedido
+        const dezembro = ehDezembro((await port.getState()).respostas?.dataEvento)
         const campoItens = campoByKey(cat.campoItens)
         const campoValor = cat.campoValor ? campoByKey(cat.campoValor) : undefined
         const texto = textoItens(p)
         const writes: FieldWrite[] = []
         if (campoItens?.id) writes.push({ campo: campoItens, value: texto })
-        if (campoValor?.id) writes.push({ campo: campoValor, value: p.total })
+        // Dezembro tem tabela própria (Karol, 10/11/2026): o valor da tabela normal não vai para o card
+        if (campoValor?.id && !dezembro) writes.push({ campo: campoValor, value: p.total })
         if (writes.length) await port.writeFields(writes)
-        if (port.setValor) await port.setValor(p.total)
+        if (port.setValor && !dezembro) await port.setValor(p.total)
         const state = await port.getState()
         const respostas = { ...(state.respostas || {}), [cat.campoItens]: p.linhas.map(l => `${l.quantidade} × ${l.descricao}`).join('; ') }
-        if (cat.campoValor) respostas[cat.campoValor] = reais(p.total)
+        if (cat.campoValor && !dezembro) respostas[cat.campoValor] = reais(p.total)
         const next = await port.patchState({ respostas })
         if (cat.etapaAoCalcular) {
           try { if (!podeMover(await port.getLead(), cat.etapaAoCalcular)) await port.moveStage(cat.etapaAoCalcular) } catch (e) { console.warn('[calcular_tabela] não moveu a etapa:', e) }
         }
         const avista = cat.descontoAVista ? ` Pagando tudo à vista (${Math.round(cat.descontoAVista * 100)}% no material): ${reais(Math.round(p.total * (1 - cat.descontoAVista) * 100) / 100)}.` : ''
+        if (dezembro) return ok([
+          `Pedido gravado:\n${p.linhas.map(l => `${l.quantidade} × ${l.descricao}`).join('\n')}`,
+          'EVENTO EM DEZEMBRO: dezembro tem tabela diferente e você NÃO tem esses valores. NÃO fale valor nenhum (nem unitário, nem total). Diga que em dezembro a tabela é diferente e que a nossa equipe passa os valores de dezembro no orçamento.',
+          p.foraDoCatalogo.length ? `Fora do catálogo (a equipe vê se tem parecido): ${p.foraDoCatalogo.join(', ')}.` : '',
+          describeOpen(porta, snapshot(porta, next)),
+        ].filter(Boolean).join('\n'))
         return ok([
           `Pedido gravado:\n${texto}`,
           `Total de tabela${p.semPreco.length || p.foraDoCatalogo.length ? ' dos itens com preço' : ''}: ${reais(p.total)}, sem frete.${p.total ? avista : ''}`,

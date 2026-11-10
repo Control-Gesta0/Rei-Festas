@@ -150,7 +150,7 @@ evidência em `docs/cliente/diagnostico.md` §7.1 e §7.2.
 | D9 | Frete = km da loja ao local (rota de carro) × R$ 2 × 4 trechos, **mínimo R$ 50** | Karol, 06-07/10 |
 | D10 | Retirada sábado 9h às 11h30; **não há devolução no sábado** (locação de fim de semana: sexta a segunda) | Karol, 06-07/10 |
 | D11 | A IA **pode falar o preço de tabela**, avisando que o valor final é confirmado | Karol, 06/10 |
-| D12 | **Preços de dezembro são os mesmos** do resto do ano | mestre, 06/10 |
+| D12 | ~~**Preços de dezembro são os mesmos** do resto do ano~~ **Revogada em 10/11/2026 (Karol):** dezembro tem tabela diferente, que não está no sistema. Em evento de dezembro a IA não fala valor; a equipe passa no orçamento | mestre, 06/10 · Karol, 10/11 |
 | D13 | Lembretes automáticos de saldo, véspera da entrega e devolução: **sim** | Karol, 06/10 |
 | D14 | Uma única instância de WhatsApp no GHL ("Atendimento"). Lista de exclusão: Noel, Diogo (motorista), Karol, Fabio (consultor) | Karol e mestre, 06/10 |
 | D15 | A Karol atende do início ao fim e recebe o pedido da IA | mestre, 06/10 |

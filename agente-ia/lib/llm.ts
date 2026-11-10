@@ -6,7 +6,7 @@ import { addUsage, emptyUsage, type Usage } from './execlog'
 import { checkReply as checkReplyBase, comCatalogo, comCumprimento, comEquipeConfirma, EQUIPE_CONFIRMA, jaAvisouEquipe, keepLastQuestion, semTravessao, type Violation } from './guards'
 import { falouDaAgenda, perguntouDisponibilidade } from './locacao'
 import { formatSlot } from './slots'
-import { hojeNoFuso, pedidoUrgentePronto, proximosDias } from './datas'
+import { hojeNoFuso, pedidoUrgentePronto, proximosDias, ehDezembro } from './datas'
 import type { ChatMsg } from './history'
 import { agendaAtiva, aplicarFinalizacao, buildTools, describeOpen, runTool, snapshot, textoSeguroDoPedido, type ToolCtx } from './tools'
 
@@ -214,7 +214,11 @@ export function createBrain(opts: LlmOptions) {
       const consultou = !!(await ctx.port.getState()).agendaConsultada
       // O cliente não sabe quem é a Karol: para ele é "nossa equipe" (só usa o nome se ele falou dela)
       const leadFalouKarol = /karol|carol/i.test(ctx.lastLeadText) || history.some(m => m.dir === 'in' && /karol|carol/i.test(m.text))
+      const stTravas = await ctx.port.getState()
+      const dezembroSemTabela = ehDezembro(stTravas.respostas?.dataEvento)
       const semAgenda = (t: string): Violation[] => [
+        ...(dezembroSemTabela && /R\$\s?\d/.test(t) ? [{ regra: 'falou valor num evento de dezembro (tabela diferente, quem passa é a equipe)', trecho: (/R\$\s?[\d.,]+/.exec(t) || [''])[0] }] : []),
+        ...(stTravas.servico === 'buffet' && /R\$\s?\d/.test(t) ? [{ regra: 'falou valor de buffet (orçamento fechado é da equipe)', trecho: (/R\$\s?[\d.,]+/.exec(t) || [''])[0] }] : []),
         ...(!consultou && falouDaAgenda(t) ? [{ regra: 'falou da agenda sem consultar_disponibilidade', trecho: falouDaAgenda(t)! }] : []),
         ...(!leadFalouKarol && /\bkarol\b/i.test(t) ? [{ regra: 'citou a Karol: para o cliente é "nossa equipe"', trecho: 'Karol' }] : []),
       ]

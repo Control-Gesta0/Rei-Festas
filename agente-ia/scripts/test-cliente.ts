@@ -21,7 +21,10 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   eq('rey: formas de pagamento passam', regras('Pode ser Pix ou cartão pelo link de pagamento em até 3x sem juros. A Karol manda junto com o orçamento.'), [])
   eq('rey: 15% bloqueia', regras('Consigo 15% pra você.'), ['percentual fora da regra'])
   eq('rey: 20% de higienização bloqueia', regras('Se voltar sujo tem taxa de 20%.'), ['percentual fora da regra'])
-  eq('rey: 7% e 50% passam', regras('Pagando tudo à vista tem 7% de desconto no material. Pra reservar, o sinal é de 50%.'), [])
+  eq('rey: 50% do sinal passa', regras('Pra reservar, o sinal é de 50%.'), [])
+  eq('rey: desconto de 7% não sai mais (a equipe aplica)', regras('Pagando tudo à vista tem 7% de desconto no material.'), ['percentual fora da regra'])
+  eq('rey: agendar entrega bloqueia', ['A entrega é feita na véspera, em horário comercial.', 'Levamos o material às 14h.', 'A recolha é até o meio-dia de segunda.'].map(t => regras(t).includes('agendou entrega')), [true, true, true])
+  eq('rey: dizer que a equipe combina a entrega passa', regras('O dia e o horário da entrega a nossa equipe combina com você.'), [])
   eq('rey: 70% não passa como 7%', regras('Dá pra dar 70% de desconto.'), ['percentual fora da regra'])
   eq('rey: valor de multa bloqueia', regras('Cancelando, a multa de R$ 200 é cobrada.'), ['valor de multa', 'valor sem dizer que a equipe confirma'])
   eq('rey: falar que a Karol explica a multa passa', regras('Sobre multa de cancelamento, a Karol te explica certinho.'), [])
@@ -126,7 +129,8 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   const { snapshot } = await import('../lib/tools')
   const porta = CRM_MAP.portas[0]
   const abertos = (respostas: Record<string, string>) => snapshot(porta, { respostas }).abertos.map(c => c.key)
-  eq('retirada não pede endereço do evento', abertos({ itens: 'x', dataEvento: 'x', entregaRetirada: 'Retirada na loja' }).includes('enderecoEvento'), false)
+  eq('retirada TAMBÉM pede endereço do evento (vai no pedido)', abertos({ itens: 'x', dataEvento: 'x', entregaRetirada: 'Retirada na loja' }).includes('enderecoEvento'), true)
+  eq('retirada não pede horário nem quem recebe', ['horarioEvento', 'contatoLocal'].map(k => abertos({ itens: 'x', dataEvento: 'x', entregaRetirada: 'Retirada na loja' }).includes(k)), [false, false])
   eq('entrega pede endereço do evento', abertos({ itens: 'x', dataEvento: 'x', entregaRetirada: 'Entrega' })[0], 'enderecoEvento')
   eq('com cadastro não pede RG nem e-mail', abertos({ cadastroErp: 'Sim' }).filter(k => ['rg', 'email', 'enderecoResidencial'].includes(k)), [])
   eq('sem cadastro pede RG', abertos({ cadastroErp: 'Não' }).includes('rg'), true)
@@ -152,7 +156,7 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   eq('erp: cliente PF com CPF formatado', [cli.tipo_pessoa, cli.cnpj_cliente, cli.razao_cliente, cli.rg_cliente], ['PF', '123.456.789-09', 'Maria Souza', '12.345.678-9'])
   const obs = erp.obsOrcamento(dadosErp, lidos.semCodigo)
   eq('erp: observação tem data, retirada e evento', /31\/10\/2026/.test(obs) && /Retirada na loja/.test(obs) && /Aniversário, 50 convidados/.test(obs), true)
-  eq('erp: retirada não leva endereço do evento', /Endereço do evento/.test(obs), false)
+  eq('erp: retirada também leva o endereço do evento', /Endereço do evento: Rua A, 1/.test(obs), true)
   eq('erp: observação lista o que conferir', /Arranjo de flores/.test(obs), true)
 
   // ---------- Locação sem o app Locações (agenda de reservas) ----------
@@ -305,6 +309,15 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   eq('buffet: utensílio de buffet é locação', ['quero alugar utensílios de buffet', 'itens pra buffet'].map(t => MAPA.buffet.naoE.test(t)), [true, true])
   eq('buffet completo manda finalizar como outro_servico', /finalizar_atendimento\(outro_servico\) AGORA/.test(tl.describeOpen(portaL, snapOk)), true)
   eq('locação continua com o roteiro de itens', tl.snapshot(portaL, {}).abertos[0].key, 'itens')
+
+
+  // ---------- Observações da Karol (10/11/2026) ----------
+  const { ehDezembro } = await import('../lib/datas')
+  eq('dezembro: reconhece a data gravada', ['20/12/2026', 'sáb 05/12/2026', '20/11/2026', '', '12/01/2027'].map(d => ehDezembro(d)), [true, true, false, false, false])
+  const tlk = await import('../lib/tools')
+  const pk = (await import('../lib/crm-map')).CRM_MAP.portas[0]
+  const cadTxt = tlk.describeOpen(pk, tlk.snapshot(pk, { respostas: { itens: 'x', dataEvento: '20/11/2026', entregaRetirada: 'Retirada na loja', enderecoEvento: 'Rua A, 1', cadastroErp: 'Não' } }))
+  eq('cadastro: pede tudo de uma vez', /Peça TODOS estes dados de uma vez/.test(cadTxt) && /CPF/.test(cadTxt) && /RG/.test(cadTxt) && /e-mail/i.test(cadTxt), true)
 
   return 0
 }
